@@ -637,6 +637,14 @@ func (m *Model) columnsBase() []listColumn {
 			cell: func(_ *Model, o model.ResourceObject) string { return orDash(templateContainers(o.Raw)) }}
 		return []listColumn{ns, name, ready, upToDate, available, status, age, containers, images}
 
+	case strings.EqualFold(kind, "NodeClaim"):
+		// Karpenter's DRIFTED column from `kubectl get nodeclaims -o wide`,
+		// with its reason: a drifted claim is one Karpenter will replace
+		// (owner request 2026-11-04).
+		drifted := listColumn{title: "DRIFTED",
+			cell: func(_ *Model, o model.ResourceObject) string { return orDash(kube.NodeClaimDrift(o.Raw)) }}
+		return []listColumn{name, status, age, drifted}
+
 	default:
 		cols := []listColumn{}
 		if m.curType.Namespaced {
