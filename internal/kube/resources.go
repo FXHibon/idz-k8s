@@ -362,6 +362,29 @@ func ObjectLabel(raw map[string]interface{}, keys ...string) string {
 	return ""
 }
 
+// NodeClaimDrift returns a Karpenter NodeClaim's Drifted condition the way
+// `kubectl get nodeclaims -o wide` prints it, plus the reason Karpenter gave:
+// "True (RequirementsDrifted)". Karpenter only sets the condition on drifted
+// claims, so "" means no drift reported, never a guessed "False".
+func NodeClaimDrift(raw map[string]interface{}) string {
+	conds, _, _ := unstructured.NestedSlice(raw, "status", "conditions")
+	for _, c := range conds {
+		cm, ok := c.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if ctype, _ := cm["type"].(string); ctype != "Drifted" {
+			continue
+		}
+		cstatus, _ := cm["status"].(string)
+		if reason, _ := cm["reason"].(string); reason != "" {
+			return cstatus + " (" + reason + ")"
+		}
+		return cstatus
+	}
+	return ""
+}
+
 // HPAInfo extracts the useful HorizontalPodAutoscaler columns: min/max
 // replicas, current/desired, and a compact target summary such as
 // "cpu 43%/80%" (current/target utilization for the first metrics).

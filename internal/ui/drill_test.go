@@ -555,6 +555,27 @@ func TestDedicatedColumnsPerType(t *testing.T) {
 	if got["TYPE"] != "kubernetes.io/tls" || got["DATA"] != "2" {
 		t.Errorf("secret cells: %v", got)
 	}
+
+	// Shapes observed on Karpenter 1.14 (dev, 2026-11-04): a drifted claim
+	// carries Drifted=True with the reason, any other claim no Drifted
+	// condition at all, which must render "-" and not a guessed "False".
+	got = cellsFor("NodeClaim", "nodeclaims", false, map[string]interface{}{
+		"status": map[string]interface{}{"conditions": []interface{}{
+			map[string]interface{}{"type": "Drifted", "status": "True", "reason": "RequirementsDrifted"},
+			map[string]interface{}{"type": "Ready", "status": "True", "reason": "Ready"},
+		}},
+	})
+	if got["DRIFTED"] != "True (RequirementsDrifted)" {
+		t.Errorf("drifted nodeclaim cells: %v", got)
+	}
+	got = cellsFor("NodeClaim", "nodeclaims", false, map[string]interface{}{
+		"status": map[string]interface{}{"conditions": []interface{}{
+			map[string]interface{}{"type": "Ready", "status": "True", "reason": "Ready"},
+		}},
+	})
+	if got["DRIFTED"] != "-" {
+		t.Errorf("nodeclaim without drift cells: %v", got)
+	}
 }
 
 func TestPadToRuneSafe(t *testing.T) {
