@@ -154,3 +154,54 @@ func TestLiveFiltersReopenEmptyWithGhost(t *testing.T) {
 		})
 	}
 }
+
+// TestListFilterCaretFollowsCursor: moving the cursor with ← must move the
+// drawn caret too — the caret used to stay at the end while typed text
+// landed at the real cursor position.
+func TestListFilterCaretFollowsCursor(t *testing.T) {
+	m := detailModel(t)
+	m.screen = screenList
+	m = typeKeys(t, m, "/bck")
+	m = press(t, m, tea.KeyLeft)
+	m = press(t, m, tea.KeyLeft)
+	if v := xansi.Strip(m.View()); !strings.Contains(v, "/ b▏ck") {
+		t.Fatalf("caret must be drawn at the cursor (after 'b'):\n%s", v)
+	}
+	m = typeKeys(t, m, "a")
+	if m.filter.Value() != "back" {
+		t.Fatalf("typed rune must land at the cursor, got %q", m.filter.Value())
+	}
+	if v := xansi.Strip(m.View()); !strings.Contains(v, "/ ba▏ck") {
+		t.Fatalf("caret must follow the inserted rune:\n%s", v)
+	}
+}
+
+// TestListFilterRecallOnlyAtEnd: → in the middle of the text moves the
+// cursor, it never accepts the ghost.
+func TestListFilterRecallOnlyAtEnd(t *testing.T) {
+	m := detailModel(t)
+	m.screen = screenList
+	m = typeKeys(t, m, "/backend")
+	m = press(t, m, tea.KeyEnter)
+	m = typeKeys(t, m, "/back")
+	m = press(t, m, tea.KeyLeft)
+	m = press(t, m, tea.KeyRight)
+	if m.filter.Value() != "back" {
+		t.Fatalf("→ mid-text must only move the cursor, got %q", m.filter.Value())
+	}
+	m = press(t, m, tea.KeyRight)
+	if m.filter.Value() != "backend" {
+		t.Fatalf("→ at the end must accept the ghost, got %q", m.filter.Value())
+	}
+}
+
+// TestInputModalKeepsCaretVisible: a value wider than the modal is cut on
+// the left so the caret stays on screen.
+func TestInputModalKeepsCaretVisible(t *testing.T) {
+	m := detailModel(t)
+	long := strings.Repeat("x", 300) + "END"
+	out := xansi.Strip(m.inputModal("t", long, -1, "", "h"))
+	if !strings.Contains(out, "END▏") || !strings.Contains(out, "/ …") {
+		t.Fatalf("caret and the end of the value must stay visible:\n%s", out)
+	}
+}
