@@ -156,23 +156,34 @@ func TestLiveFiltersReopenEmptyWithGhost(t *testing.T) {
 }
 
 // TestListFilterCaretFollowsCursor: moving the cursor with ← must move the
-// drawn caret too — the caret used to stay at the end while typed text
-// landed at the real cursor position.
+// drawn caret too (it used to stay at the end while typed text landed at
+// the real cursor), and mid-text the caret is a block over the rune — an
+// inserted glyph shifted every following rune one column right.
 func TestListFilterCaretFollowsCursor(t *testing.T) {
 	m := detailModel(t)
 	m.screen = screenList
 	m = typeKeys(t, m, "/bck")
 	m = press(t, m, tea.KeyLeft)
 	m = press(t, m, tea.KeyLeft)
-	if v := xansi.Strip(m.View()); !strings.Contains(v, "/ b▏ck") {
-		t.Fatalf("caret must be drawn at the cursor (after 'b'):\n%s", v)
+	field := func(m Model) string {
+		return m.inputModal("t", m.filter.Value(), m.filter.Position(), "", "h")
+	}
+	if f := field(m); !strings.Contains(f, "/ b"+m.theme.Cursor.Render("c")+"k ") {
+		t.Fatalf("caret must be a block on 'c', the rest unshifted:\n%q", f)
+	}
+	if v := xansi.Strip(m.View()); !strings.Contains(v, "/ bck ") || strings.Contains(v, "▏") {
+		t.Fatalf("mid-text caret must not insert a column:\n%s", v)
 	}
 	m = typeKeys(t, m, "a")
 	if m.filter.Value() != "back" {
 		t.Fatalf("typed rune must land at the cursor, got %q", m.filter.Value())
 	}
-	if v := xansi.Strip(m.View()); !strings.Contains(v, "/ ba▏ck") {
-		t.Fatalf("caret must follow the inserted rune:\n%s", v)
+	if f := field(m); !strings.Contains(f, "/ ba"+m.theme.Cursor.Render("c")+"k ") {
+		t.Fatalf("caret must follow the inserted rune:\n%q", f)
+	}
+	m = press(t, m, tea.KeyEnd)
+	if v := xansi.Strip(m.View()); !strings.Contains(v, "/ back▏") {
+		t.Fatalf("at the end the caret is the bar after the text:\n%s", v)
 	}
 }
 
