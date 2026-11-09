@@ -6,7 +6,7 @@ import (
 	"slices"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/iadvize/idz-k8s/internal/config"
 	"github.com/iadvize/idz-k8s/internal/kube"
@@ -34,7 +34,7 @@ func TestTypePickerTypeToFilterAndSelect(t *testing.T) {
 
 	// Type-to-filter: typing "stateful" narrows to the statefulsets entry (k9s-style).
 	for _, r := range "stateful" {
-		mi, _ = m.handlePickerKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		mi, _ = m.handlePickerKey(tea.KeyPressMsg{Code: r, Text: string(r)})
 		m = mi.(Model)
 	}
 	rows, _ := m.pickerWin.Selected()
@@ -44,7 +44,7 @@ func TestTypePickerTypeToFilterAndSelect(t *testing.T) {
 	}
 
 	// Select the filtered result.
-	mi, _ = m.handlePickerKey(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, _ = m.handlePickerKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = mi.(Model)
 	t.Logf("after enter: curType=%q screen=%d", m.curType.Key(), m.screen)
 	if m.curType.Resource != "statefulsets" {
@@ -55,13 +55,13 @@ func TestTypePickerTypeToFilterAndSelect(t *testing.T) {
 	mi, _ = m.openPicker(pickType)
 	m = mi.(Model)
 	for _, r := range "pods" {
-		mi, _ = m.handlePickerKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		mi, _ = m.handlePickerKey(tea.KeyPressMsg{Code: r, Text: string(r)})
 		m = mi.(Model)
 	}
 	if got := m.pickerWin.Len(); got != 1 {
 		t.Fatalf("expected 1 row after filtering 'pods', got %d", got)
 	}
-	mi, _ = m.handlePickerKey(tea.KeyMsg{Type: tea.KeyBackspace})
+	mi, _ = m.handlePickerKey(tea.KeyPressMsg{Code: tea.KeyBackspace})
 	m = mi.(Model)
 	if got := m.pickerWin.Len(); got < 1 {
 		t.Fatalf("backspace should widen results, got %d rows", got)

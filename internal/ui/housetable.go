@@ -9,7 +9,7 @@ package ui
 import (
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 )
 
 // houseColumn describes one column of a house-style table (usage, sizing).

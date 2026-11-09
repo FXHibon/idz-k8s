@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/charmbracelet/bubbles/table"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/table"
+	tea "charm.land/bubbletea/v2"
 	xansi "github.com/charmbracelet/x/ansi"
 
 	"github.com/iadvize/idz-k8s/internal/config"
@@ -43,20 +43,20 @@ func TestHelmFilterNarrowsReleases(t *testing.T) {
 		t.Fatalf("seed rows=%d", m.helmWin.Len())
 	}
 	// '/' opens the filter.
-	mi, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+	mi, _ := m.handleKey(tea.KeyPressMsg{Code: '/', Text: "/"})
 	m = asModel(t, mi)
 	if !m.helmFiltering {
 		t.Fatal("'/' must open the helm filter")
 	}
 	// Typing "q" must edit the query, never quit.
 	for _, r := range "front" {
-		mi, cmd := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		mi, cmd := m.handleKey(tea.KeyPressMsg{Code: r, Text: string(r)})
 		if cmd != nil {
 			t.Fatal("typing in the helm filter triggered a command")
 		}
 		m = asModel(t, mi)
 	}
-	mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, _ = m.handleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	if m.helmFiltering || m.helmQuery != "front" {
 		t.Fatalf("commit failed: filtering=%v query=%q", m.helmFiltering, m.helmQuery)
@@ -69,9 +69,9 @@ func TestHelmFilterNarrowsReleases(t *testing.T) {
 		t.Fatalf("committed helm filter must show in the header:\n%s", line)
 	}
 	// Esc while typing clears it.
-	mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+	mi, _ = m.handleKey(tea.KeyPressMsg{Code: '/', Text: "/"})
 	m = asModel(t, mi)
-	mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyEscape})
+	mi, _ = m.handleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
 	m = asModel(t, mi)
 	if m.helmQuery != "" || m.helmWin.Len() != 2 {
 		t.Fatalf("Esc should clear: query=%q rows=%d", m.helmQuery, m.helmWin.Len())
@@ -168,7 +168,7 @@ func TestHelmResourceDefinitionAndLive(t *testing.T) {
 	}
 
 	// Enter opens ITS definition, not the whole manifest.
-	mi, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	if m.screen != screenHelmRes {
 		t.Fatalf("Enter must open the resource definition, screen=%d", m.screen)
@@ -179,26 +179,26 @@ func TestHelmResourceDefinitionAndLive(t *testing.T) {
 	}
 
 	// Esc returns to the detail; ↓ moves to the Service.
-	mi, _ = m.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	mi, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	m = asModel(t, mi)
 	if m.screen != screenHelmHist {
 		t.Fatalf("Esc must return to the release detail, screen=%d", m.screen)
 	}
-	mi, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	mi, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 	m = asModel(t, mi)
 	if m.helmResSel != 1 {
 		t.Fatalf("↓ must move the resource selection, got %d", m.helmResSel)
 	}
-	mi, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	if def := xansi.Strip(m.helmRes.View()); !strings.Contains(def, "port: 8080") {
 		t.Fatalf("the Service definition should show:\n%s", def)
 	}
 
 	// 'y' asks the cluster for the live object (the type is discoverable).
-	mi, _ = m.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	mi, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	m = asModel(t, mi)
-	mi, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	mi, cmd := m.Update(tea.KeyPressMsg{Code: 'y', Text: "y"})
 	m = asModel(t, mi)
 	if m.screen != screenHelmRes || cmd == nil {
 		t.Fatalf("'y' must open the live view and fetch it (screen=%d cmd=%v)", m.screen, cmd != nil)

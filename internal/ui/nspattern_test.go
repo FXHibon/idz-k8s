@@ -3,7 +3,7 @@ package ui
 import (
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/iadvize/idz-k8s/internal/config"
 	"github.com/iadvize/idz-k8s/internal/kube"
@@ -27,7 +27,7 @@ func TestNamespacePickerGlobBecomesSelectablePattern(t *testing.T) {
 	m.screen = screenPicker
 
 	for _, r := range "staging-*" {
-		mi, _ := m.handlePickerKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		mi, _ := m.handlePickerKey(tea.KeyPressMsg{Code: r, Text: string(r)})
 		m = asModel(t, mi)
 	}
 	row, ok := m.pickerWin.Selected()
@@ -65,7 +65,7 @@ func TestNamespaceMultiSelectByMark(t *testing.T) {
 		for i, row := range m.pickerWin.rows {
 			if row[0] == name {
 				m.pickerWin.cursor = i
-				mi, _ := m.handlePickerKey(tea.KeyMsg{Type: tea.KeySpace, Runes: []rune{' '}})
+				mi, _ := m.handlePickerKey(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 				m = asModel(t, mi)
 				return
 			}
@@ -79,7 +79,7 @@ func TestNamespaceMultiSelectByMark(t *testing.T) {
 	}
 	// Space on the all-namespaces sentinel is a no-op.
 	m.pickerWin.Home()
-	mi, _ = m.handlePickerKey(tea.KeyMsg{Type: tea.KeySpace, Runes: []rune{' '}})
+	mi, _ = m.handlePickerKey(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 	m = asModel(t, mi)
 	if len(m.pickerMarked) != 2 {
 		t.Fatalf("the sentinel must not be markable, got %v", m.pickerMarked)
@@ -125,7 +125,7 @@ func TestResetViewGoesHome(t *testing.T) {
 		svc.Key():  {Filter: "sticky-svc-filter", Columns: []string{"NAME"}},
 	}
 
-	mi, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'R'}})
+	mi, cmd := m.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})
 	m = asModel(t, mi)
 	if cmd == nil {
 		t.Fatal("reset must reload the list")

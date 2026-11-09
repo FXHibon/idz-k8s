@@ -7,13 +7,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
 	xansi "github.com/charmbracelet/x/ansi"
 )
 
 // handleSearchKey handles '/', 'n' and 'N' on a searchable viewport.
-func (m Model) handleSearchKey(msg tea.KeyMsg) (tea.Model, tea.Cmd, bool) {
+func (m Model) handleSearchKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd, bool) {
 	switch {
 	case hit(msg, m.keys.Filter):
 		m.searchTyping, m.searchInput = true, ""
@@ -137,7 +137,7 @@ func (m *Model) gotoSearchHit() {
 	if vp == nil || len(m.searchHits) == 0 {
 		return
 	}
-	off := m.searchHits[m.searchIdx] - vp.Height/3
+	off := m.searchHits[m.searchIdx] - vp.Height()/3
 	if off < 0 {
 		off = 0
 	}

@@ -11,13 +11,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/table"
-	"github.com/charmbracelet/bubbles/textinput"
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/table"
+	"charm.land/bubbles/v2/textinput"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	xansi "github.com/charmbracelet/x/ansi"
 
 	"github.com/iadvize/idz-k8s/internal/config"
@@ -451,20 +451,20 @@ func New(client *kube.Client, cfg config.Config, kubeconfigPath string, opts ...
 		keys:             keys.Default(),
 		theme:            theme.Default(),
 		help:             help.New(),
-		detail:           viewport.New(0, 0),
-		logsView:         viewport.New(0, 0),
-		diag:             viewport.New(0, 0),
-		topo:             viewport.New(0, 0),
-		events:           viewport.New(0, 0),
+		detail:           newViewport(),
+		logsView:         newViewport(),
+		diag:             newViewport(),
+		topo:             newViewport(),
+		events:           newViewport(),
 		filter:           fi,
 		helmTable:        table.New(table.WithFocused(true)),
-		helmHist:         viewport.New(0, 0),
-		helmRes:          viewport.New(0, 0),
-		sizingVP:         viewport.New(0, 0),
-		posture:          viewport.New(0, 0),
-		connectivity:     viewport.New(0, 0),
-		access:           viewport.New(0, 0),
-		drift:            viewport.New(0, 0),
+		helmHist:         newViewport(),
+		helmRes:          newViewport(),
+		sizingVP:         newViewport(),
+		posture:          newViewport(),
+		connectivity:     newViewport(),
+		access:           newViewport(),
+		drift:            newViewport(),
 		screen:           screenList,
 		marked:           map[string]model.ResourceObject{},
 		forwards:         map[string]*kube.PortForward{},
@@ -891,7 +891,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.statusMsg = "⇄ " + msg.fw.Label() + " — stop it from the actions palette ('a')"
 		return m, nil
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		return m.handleKey(msg)
 
 	case tea.MouseMsg:
@@ -915,8 +915,8 @@ const (
 // last RUNE (never a byte — 'é' is 2 bytes, FR "widths in runes" applies to
 // input too), runes/space append. Every typing mode shares this so the
 // Enter-commits / Esc-cancels contract stays consistent (invariant 0).
-func editText(s *string, msg tea.KeyMsg) (act editAction, changed bool) {
-	switch msg.Type {
+func editText(s *string, msg tea.KeyPressMsg) (act editAction, changed bool) {
+	switch msg.Code {
 	case tea.KeyEnter:
 		return editCommit, false
 	case tea.KeyEscape:
@@ -927,14 +927,16 @@ func editText(s *string, msg tea.KeyMsg) (act editAction, changed bool) {
 			*s = string(r[:len(r)-1])
 			return editTyping, true
 		}
-	case tea.KeyRunes, tea.KeySpace:
-		*s += string(msg.Runes)
-		return editTyping, true
+	default:
+		if isTextKey(msg) {
+			*s += msg.Text
+			return editTyping, true
+		}
 	}
 	return editTyping, false
 }
 
-func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	// Typing modes capture ALL keys BEFORE the global shortcuts (typing "q"
 	// or "m" must never quit the app or toggle the mouse).
 
@@ -1078,8 +1080,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Picker type-to-filter captures printable keys BEFORE global shortcuts
 	// (typing "configmaps" must not trigger 'm' mouse-toggle or 'q' quit).
 	if m.screen == screenPicker {
-		switch msg.Type {
-		case tea.KeyRunes, tea.KeySpace, tea.KeyBackspace:
+		if msg.Code == tea.KeyBackspace || isTextKey(msg) {
 			return m.handlePickerKey(msg)
 		}
 	}
@@ -1131,10 +1132,10 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.mouseOn = !m.mouseOn
 		if m.mouseOn {
 			m.statusMsg = "mouse ON — clicks & scroll active"
-			return m, tea.EnableMouseCellMotion
+			return m, nil
 		}
 		m.statusMsg = "mouse OFF — select & copy text freely ('m' to re-enable)"
-		return m, tea.DisableMouse
+		return m, nil
 	case hit(msg, m.keys.Back):
 		return m.goBack()
 	case hit(msg, m.keys.Palette):
@@ -1217,7 +1218,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
-		switch msg.Type {
+		switch msg.Code {
 		case tea.KeyUp:
 			if m.topoSel > 0 {
 				m.topoSel--
@@ -1267,9 +1268,10 @@ const (
 // Row mapping is exact thanks to winTable windowing.
 func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	// Wheel: tables move the selection; viewports scroll natively.
-	if msg.Button == tea.MouseButtonWheelUp || msg.Button == tea.MouseButtonWheelDown {
+	ev := msg.Mouse()
+	if _, wheel := msg.(tea.MouseWheelMsg); wheel && (ev.Button == tea.MouseWheelUp || ev.Button == tea.MouseWheelDown) {
 		delta := 3
-		if msg.Button == tea.MouseButtonWheelUp {
+		if ev.Button == tea.MouseWheelUp {
 			delta = -3
 		}
 		switch m.screen {
@@ -1296,20 +1298,20 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			return m.delegate(msg)
 		}
 	}
-	if msg.Button != tea.MouseButtonLeft || msg.Action != tea.MouseActionPress {
+	if _, click := msg.(tea.MouseClickMsg); !click || ev.Button != tea.MouseLeft {
 		return m.delegate(msg)
 	}
 	// kikoo banner: all click geometry below is banner-less — normalize once.
-	msg.Y -= m.bannerH()
-	if msg.Y < 0 {
+	ev.Y -= m.bannerH()
+	if ev.Y < 0 {
 		return m, nil // click inside the banner: pure decoration
 	}
 
 	// Clickable on-screen controls (T048): header chips and footer labels act
 	// exactly like pressing their key.
-	if msg.Y == 0 && m.screen != screenPicker {
+	if ev.Y == 0 && m.screen != screenPicker {
 		for _, z := range m.headerZones() {
-			if msg.X >= z.x0 && msg.X < z.x1 {
+			if ev.X >= z.x0 && ev.X < z.x1 {
 				// Direct actions so the chips work from every view.
 				switch z.key {
 				case "c":
@@ -1322,9 +1324,9 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 	}
-	if msg.Y == m.bodyH+4 && !m.help.ShowAll { // shortcuts line
+	if ev.Y == m.bodyH+4 && !m.help.ShowAll { // shortcuts line
 		for _, z := range m.footerZones() {
-			if msg.X >= z.x0 && msg.X < z.x1 {
+			if ev.X >= z.x0 && ev.X < z.x1 {
 				return m.handleKey(keyMsgFor(z.key))
 			}
 		}
@@ -1342,8 +1344,8 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	switch m.screen {
 	case screenList:
 		// Column header (y=2): click sorts by that column, again = reverse.
-		if msg.Y == tableHeaderY {
-			if col, ok := m.columnAt(msg.X); ok && col >= 1 {
+		if ev.Y == tableHeaderY {
+			if col, ok := m.columnAt(ev.X); ok && col >= 1 {
 				if m.sortCol == col {
 					m.sortAsc = !m.sortAsc
 				} else {
@@ -1355,15 +1357,15 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		// y0 header, y1 rule, y2 column header → rows start at y=3.
-		if m.win.ClickVisible(msg.Y - headerLines) {
+		if m.win.ClickVisible(ev.Y - headerLines) {
 			if doubleClick(m.win.cursor) {
 				return m.openListSelection()
 			}
 		}
 		return m, nil
 	case screenTop:
-		if msg.Y == tableHeaderY {
-			if col, ok := m.usageColumnAt(msg.X); ok {
+		if ev.Y == tableHeaderY {
+			if col, ok := m.usageColumnAt(ev.X); ok {
 				if m.usageSortCol == col {
 					m.usageSortAsc = !m.usageSortAsc
 				} else {
@@ -1373,7 +1375,7 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
-		if m.usageWin.ClickVisible(msg.Y-headerLines) && doubleClick(m.usageWin.cursor) {
+		if m.usageWin.ClickVisible(ev.Y-headerLines) && doubleClick(m.usageWin.cursor) {
 			if c := m.usageWin.cursor; c >= 0 && c < len(m.usageRows) {
 				r := m.usageRows[c]
 				return m.openDescribeRef(objRef{typeKey: m.usageTypeKey, ns: r.Namespace, name: r.Name})
@@ -1381,8 +1383,8 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case screenContainers:
-		if msg.Y == tableHeaderY {
-			if col, ok := m.containerColumnAt(msg.X); ok {
+		if ev.Y == tableHeaderY {
+			if col, ok := m.containerColumnAt(ev.X); ok {
 				if m.containerSortCol == col {
 					m.containerSortAsc = !m.containerSortAsc
 				} else {
@@ -1392,12 +1394,12 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
-		if m.containerWin.ClickVisible(msg.Y-headerLines) && doubleClick(m.containerWin.cursor) {
+		if m.containerWin.ClickVisible(ev.Y-headerLines) && doubleClick(m.containerWin.cursor) {
 			return m.openContainerLogs()
 		}
 		return m, nil
 	case screenDiag:
-		if i, ok := findingAt(m.diag.YOffset+msg.Y-viewportTopY, m.diagLines); ok {
+		if i, ok := findingAt(m.diag.YOffset()+ev.Y-viewportTopY, m.diagLines); ok {
 			m.diagSel = i
 			m.renderDiagView()
 			if doubleClick(1000 + i) {
@@ -1406,7 +1408,7 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case screenPosture:
-		if i, ok := findingAt(m.posture.YOffset+msg.Y-viewportTopY, m.postureLines); ok {
+		if i, ok := findingAt(m.posture.YOffset()+ev.Y-viewportTopY, m.postureLines); ok {
 			m.postureSel = i
 			m.renderPostureView()
 			if doubleClick(2000 + i) {
@@ -1415,7 +1417,7 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case screenTopology:
-		if i, ok := findingAt(m.topo.YOffset+msg.Y-viewportTopY, m.topoNodeLines); ok {
+		if i, ok := findingAt(m.topo.YOffset()+ev.Y-viewportTopY, m.topoNodeLines); ok {
 			m.topoSel = i
 			m.renderTopologyView()
 			if doubleClick(3000 + i) {
@@ -1424,8 +1426,8 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case screenSizingList:
-		if msg.Y == tableHeaderY {
-			if col, ok := m.sizingColumnAt(msg.X); ok {
+		if ev.Y == tableHeaderY {
+			if col, ok := m.sizingColumnAt(ev.X); ok {
 				if m.sizingSortCol == col {
 					m.sizingSortAsc = !m.sizingSortAsc
 				} else {
@@ -1435,7 +1437,7 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
-		if m.sizingWin.ClickVisible(msg.Y - headerLines) {
+		if m.sizingWin.ClickVisible(ev.Y - headerLines) {
 			if doubleClick(m.sizingWin.cursor) {
 				return m.openSizingDetail(m.sizingWin.cursor)
 			}
@@ -1444,7 +1446,7 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	case screenHelmHist:
 		// Click a deployed resource to select it, double-click opens its
 		// definition (same gesture as the findings views).
-		if i, ok := findingAt(m.helmHist.YOffset+msg.Y-viewportTopY, m.helmResLines); ok {
+		if i, ok := findingAt(m.helmHist.YOffset()+ev.Y-viewportTopY, m.helmResLines); ok {
 			m.helmResSel = i
 			m.renderHelmDetailView()
 			if doubleClick(4000 + i) {
@@ -1453,11 +1455,11 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case screenHelm:
-		if msg.Y == tableHeaderY {
+		if ev.Y == tableHeaderY {
 			widths := m.helmColWidths()
 			pos := 0
 			for i, w := range widths {
-				if msg.X >= pos && msg.X < pos+w {
+				if ev.X >= pos && ev.X < pos+w {
 					if m.helmSortCol == i {
 						m.helmSortAsc = !m.helmSortAsc
 					} else {
@@ -1470,7 +1472,7 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
-		if m.helmWin.ClickVisible(msg.Y - headerLines) {
+		if m.helmWin.ClickVisible(ev.Y - headerLines) {
 			m.helmWin.Sync(&m.helmTable)
 			if doubleClick(m.helmWin.cursor) {
 				return m.openHelmDetail(false)
@@ -1479,12 +1481,12 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case screenPicker:
 		_, geom := m.pickerModal()
-		inBox := msg.X >= geom.x && msg.X < geom.x+geom.w &&
-			msg.Y >= geom.y && msg.Y < geom.y+geom.h
+		inBox := ev.X >= geom.x && ev.X < geom.x+geom.w &&
+			ev.Y >= geom.y && ev.Y < geom.y+geom.h
 		if !inBox {
 			return m.goBack() // click outside the modal closes it
 		}
-		if rel := msg.Y - geom.optTop; rel >= 0 && rel < geom.optRows {
+		if rel := ev.Y - geom.optTop; rel >= 0 && rel < geom.optRows {
 			if m.pickerWin.ClickVisible(rel) {
 				if m.pickerKind == pickColumns {
 					// Chooser: a single click toggles the column.
@@ -1498,17 +1500,17 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case screenEvents:
-		contentLine := m.events.YOffset + msg.Y - viewportTopY // y0 header, y1 rule → viewport at y=2
+		contentLine := m.events.YOffset() + ev.Y - viewportTopY // y0 header, y1 rule → viewport at y=2
 		// The first content line holds the kind selector and filter controls.
 		if contentLine == 0 {
-			if msg.X >= m.eventsKindZone.x0 && msg.X < m.eventsKindZone.x1 {
+			if ev.X >= m.eventsKindZone.x0 && ev.X < m.eventsKindZone.x1 {
 				return m.openKindPicker()
 			}
-			if msg.X >= m.eventsScaleZone.x0 && msg.X < m.eventsScaleZone.x1 {
+			if ev.X >= m.eventsScaleZone.x0 && ev.X < m.eventsScaleZone.x1 {
 				m.cycleEventsWindow()
 				return m, nil
 			}
-			if msg.X >= m.eventsFilterHit.x0 && msg.X < m.eventsFilterHit.x1 {
+			if ev.X >= m.eventsFilterHit.x0 && ev.X < m.eventsFilterHit.x1 {
 				m.eventsFiltering = true
 				m.openRecall(recallEvents, &m.eventsQuery)
 				m.renderEvents()
@@ -1614,14 +1616,14 @@ func (m *Model) keepFindingVisible(vp *viewport.Model, lines []int, sel int) {
 		return
 	}
 	line := lines[sel]
-	if line < vp.YOffset {
+	if line < vp.YOffset() {
 		off := line - 2
 		if off < 0 {
 			off = 0
 		}
 		vp.SetYOffset(off)
-	} else if line >= vp.YOffset+vp.Height {
-		vp.SetYOffset(line - vp.Height + 3)
+	} else if line >= vp.YOffset()+vp.Height() {
+		vp.SetYOffset(line - vp.Height() + 3)
 	}
 }
 
@@ -1642,21 +1644,33 @@ func (m *Model) layout() {
 	m.pickerWin.SetHeight(m.modalListRows())
 	m.helmWin.SetHeight(bodyH - 1)
 	m.helmWin.Sync(&m.helmTable)
-	m.detail.Width, m.detail.Height = m.width, bodyH
-	m.logsView.Width, m.logsView.Height = m.width, bodyH
+	m.detail.SetWidth(m.width)
+	m.detail.SetHeight(bodyH)
+	m.logsView.SetWidth(m.width)
+	m.logsView.SetHeight(bodyH)
 	m.usageWin.SetHeight(bodyH - 1) // -1: the usage table's own header
-	m.diag.Width, m.diag.Height = m.width, bodyH
-	m.topo.Width, m.topo.Height = m.width, bodyH
-	m.events.Width, m.events.Height = m.width, bodyH
-	m.helmHist.Width, m.helmHist.Height = m.width, bodyH
-	m.helmRes.Width, m.helmRes.Height = m.width, bodyH
-	m.sizingVP.Width, m.sizingVP.Height = m.width, bodyH
+	m.diag.SetWidth(m.width)
+	m.diag.SetHeight(bodyH)
+	m.topo.SetWidth(m.width)
+	m.topo.SetHeight(bodyH)
+	m.events.SetWidth(m.width)
+	m.events.SetHeight(bodyH)
+	m.helmHist.SetWidth(m.width)
+	m.helmHist.SetHeight(bodyH)
+	m.helmRes.SetWidth(m.width)
+	m.helmRes.SetHeight(bodyH)
+	m.sizingVP.SetWidth(m.width)
+	m.sizingVP.SetHeight(bodyH)
 	m.sizingWin.SetHeight(bodyH - 1)    // -1: the overview's own column header
 	m.containerWin.SetHeight(bodyH - 1) // -1: the containers table's header
-	m.posture.Width, m.posture.Height = m.width, bodyH
-	m.connectivity.Width, m.connectivity.Height = m.width, bodyH
-	m.access.Width, m.access.Height = m.width, bodyH
-	m.drift.Width, m.drift.Height = m.width, bodyH
+	m.posture.SetWidth(m.width)
+	m.posture.SetHeight(bodyH)
+	m.connectivity.SetWidth(m.width)
+	m.connectivity.SetHeight(bodyH)
+	m.access.SetWidth(m.width)
+	m.access.SetHeight(bodyH)
+	m.drift.SetWidth(m.width)
+	m.drift.SetHeight(bodyH)
 	m.helmTable.SetHeight(bodyH)
 	m.helmTable.SetWidth(m.width)
 }
@@ -1702,7 +1716,35 @@ func (m Model) bodyView(sc screen) string {
 	}
 }
 
-func (m Model) View() string {
+// View declares the terminal state Bubble Tea v2 applies: alt screen,
+// mouse capture (toggled with 'm'), the frame and — while an input box is
+// open — the REAL terminal cursor at its caret. A drawn caret took a column
+// of its own and could never look like the user's cursor (owner request
+// 2026-11-09). v2 always sends a shape with the cursor (it cannot leave the
+// terminal's configured one), so it is a bar; v2 resets the terminal to its
+// default shape when the cursor hides and on exit.
+func (m Model) View() tea.View {
+	content, cur := m.render()
+	v := tea.NewView(content)
+	v.AltScreen = true
+	if m.mouseOn {
+		v.MouseMode = tea.MouseModeCellMotion
+	}
+	if cur != nil {
+		v.Cursor = tea.NewCursor(cur.x, cur.y)
+		v.Cursor.Shape = tea.CursorBar
+	}
+	return v
+}
+
+// caretPos is a screen cell (0-based, banner included).
+type caretPos struct{ x, y int }
+
+// inputCaretRow is the input line's row inside inputModal/pickerModal boxes:
+// border, title, input.
+const inputCaretRow = 2
+
+func (m Model) render() (string, *caretPos) {
 	// Pickers render as a centered modal OVER the screen they were opened
 	// from; filters render as a centered input box over the live view.
 	bodySc := m.screen
@@ -1722,45 +1764,64 @@ func (m Model) View() string {
 	b.WriteString("\n")
 	b.WriteString(m.footer())
 	out := b.String()
+	var cur *caretPos
+	input := func(box string, caretX int) {
+		var x, y int
+		out, x, y = overlayCenterAt(out, box, m.width)
+		cur = &caretPos{x: x + caretX, y: y + inputCaretRow}
+	}
 
 	switch {
 	case m.confirming:
 		out = overlayCenter(out, m.confirmModal(), m.width)
 	case m.promptKind != promptNone:
-		out = overlayCenter(out, m.inputModal(m.promptTitle, m.promptInput, -1, "", m.promptHint), m.width)
+		input(m.inputModal(m.promptTitle, m.promptInput, -1, "", m.promptHint))
 	case m.fieldNaming:
-		out = overlayCenter(out, m.inputModal("add column — label key or .field.path",
-			m.fieldInput, -1, "", "e.g. app · .status.podIP — Enter add · Esc cancel"), m.width)
+		input(m.inputModal("add column — label key or .field.path",
+			m.fieldInput, -1, "", "e.g. app · .status.podIP — Enter add · Esc cancel"))
 	case m.screen == screenPicker:
 		box, _ := m.pickerModal()
-		out = overlayCenter(out, box, m.width)
+		if m.pickerKind == pickColumns {
+			out = overlayCenter(out, box, m.width)
+		} else {
+			input(box, min(2+len([]rune("▸ "+m.pickerQuery)), m.modalW()-3))
+		}
 	case m.viewNaming:
-		out = overlayCenter(out, m.inputModal("save view as", m.viewName, -1, "", "Enter save · Esc cancel"), m.width)
+		input(m.inputModal("save view as", m.viewName, -1, "", "Enter save · Esc cancel"))
 	case m.filtering:
-		out = overlayCenter(out, m.inputModal("filter "+m.curType.Resource, m.filter.Value(), m.filter.Position(), m.ghostFor(recallList, m.filter.Value()), "any column · space = AND · Enter save · Esc close"), m.width)
+		input(m.inputModal("filter "+m.curType.Resource, m.filter.Value(), m.filter.Position(), m.ghostFor(recallList, m.filter.Value()), "any column · space = AND · Enter save · Esc close"))
 	case m.screen == screenEvents && m.eventsFiltering:
-		out = overlayCenter(out, m.inputModal("filter events", m.eventsQuery, -1, m.ghostFor(recallEvents, m.eventsQuery), "Enter save · Esc cancel"), m.width)
+		input(m.inputModal("filter events", m.eventsQuery, -1, m.ghostFor(recallEvents, m.eventsQuery), "Enter save · Esc cancel"))
 	case m.screen == screenHelm && m.helmFiltering:
-		out = overlayCenter(out, m.inputModal("filter helm releases", m.helmQuery, -1, m.ghostFor(recallHelm, m.helmQuery), "any column · space = AND · Enter save · Esc close"), m.width)
+		input(m.inputModal("filter helm releases", m.helmQuery, -1, m.ghostFor(recallHelm, m.helmQuery), "any column · space = AND · Enter save · Esc close"))
 	case m.searchTyping:
-		out = overlayCenter(out, m.inputModal("search", m.searchInput, -1, m.ghostFor(recallSearch, m.searchInput), "Enter search · 'n'/'N' navigate · Esc clear"), m.width)
+		input(m.inputModal("search", m.searchInput, -1, m.ghostFor(recallSearch, m.searchInput), "Enter search · 'n'/'N' navigate · Esc clear"))
 	case m.screen == screenSizingList && m.sizingFiltering:
-		out = overlayCenter(out, m.inputModal("filter workloads", m.sizingQuery, -1, m.ghostFor(recallSizing, m.sizingQuery), "any column · space = AND · Enter save · Esc close"), m.width)
+		input(m.inputModal("filter workloads", m.sizingQuery, -1, m.ghostFor(recallSizing, m.sizingQuery), "any column · space = AND · Enter save · Esc close"))
 	case m.screen == screenTop && m.usageTyping:
-		out = overlayCenter(out, m.inputModal("filter usage rows", m.usageFilterQ, -1, m.ghostFor(recallUsage, m.usageFilterQ), "any column · space = AND · Enter save · Esc close"), m.width)
+		input(m.inputModal("filter usage rows", m.usageFilterQ, -1, m.ghostFor(recallUsage, m.usageFilterQ), "any column · space = AND · Enter save · Esc close"))
 	}
 	// The banner is prepended AFTER the overlays: modals center within the
 	// app area and every click keeps its banner-less coordinates (mouse Y is
 	// normalized once in handleMouse).
 	if h := m.bannerH(); h > 0 {
 		out = m.banner() + out
+		if cur != nil {
+			cur.y += h
+		}
 	}
-	return out
+	return out, cur
 }
 
 // overlayCenter splices a box over the center of a rendered frame,
 // ANSI-safely (the background stays visible around the modal).
 func overlayCenter(bg, box string, totalW int) string {
+	out, _, _ := overlayCenterAt(bg, box, totalW)
+	return out
+}
+
+// overlayCenterAt is overlayCenter that also returns the box's top-left cell.
+func overlayCenterAt(bg, box string, totalW int) (string, int, int) {
 	bgLines := strings.Split(bg, "\n")
 	boxLines := strings.Split(box, "\n")
 	boxW := 0
@@ -1790,7 +1851,7 @@ func overlayCenter(bg, box string, totalW int) string {
 		right := xansi.TruncateLeft(line, x+boxW, "")
 		bgLines[r] = left + bl + right
 	}
-	return strings.Join(bgLines, "\n")
+	return strings.Join(bgLines, "\n"), x, y
 }
 
 // modalW/modalListRows bound the picker modal size.
@@ -1841,7 +1902,7 @@ func (m Model) pickerModal() (string, modalGeom) {
 		// No type-to-filter here; the line keeps the modal geometry stable.
 		lines = append(lines, m.theme.Faint.Render(padTo("Space show/hide · ←/→ reorder · ⌫ remove custom", inner)))
 	} else {
-		lines = append(lines, padTo("▸ "+m.pickerQuery+"▏", inner))
+		lines = append(lines, padTo("▸ "+m.pickerQuery, inner))
 	}
 	for i := m.pickerWin.win; i < m.pickerWin.win+shown; i++ {
 		mark := " "
@@ -1882,13 +1943,13 @@ func (m Model) pickerModal() (string, modalGeom) {
 	return box, geom
 }
 
-// inputModal renders a centered single-input box (filters).
-// inputModal draws a one-line input. cursor is the rune index of the caret
-// (-1 = end of value): the list filter's textinput moves it with ←/→/Home/End,
-// and a caret always drawn at the end made typed text land elsewhere.
-func (m Model) inputModal(title, value string, cursor int, ghost, hint string) string {
-	w := m.modalW()
-	inner := w - 4
+// inputModal draws a one-line input box (filters, search, prompts) and
+// returns the caret's column inside the box, on row inputCaretRow: View puts
+// the real terminal cursor there, so nothing is drawn for the caret. cursor
+// is the caret's rune index (-1 = end of value) — the list filter's
+// textinput moves it with ←/→/Home/End.
+func (m Model) inputModal(title, value string, cursor int, ghost, hint string) (string, int) {
+	inner := m.modalW() - 4
 	r := []rune(value)
 	if cursor < 0 || cursor > len(r) {
 		cursor = len(r)
@@ -1901,25 +1962,14 @@ func (m Model) inputModal(title, value string, cursor int, ghost, hint string) s
 	if over := len(before) + 3 - inner; over > 0 {
 		before = append([]rune("…"), before[over+1:]...)
 	}
-	if len(after) > 0 {
-		// Mid-text the caret is a block over the rune under the cursor: an
-		// inserted "▏" would take a column and shift the rest of the text.
-		head := "/ " + string(before)
-		tail := truncate(string(after[1:]), inner-len([]rune(head))-1)
-		field := head + m.theme.Cursor.Render(string(after[0])) + tail
-		if pad := inner - len([]rune(head)) - 1 - len([]rune(tail)); pad > 0 {
-			field += strings.Repeat(" ", pad)
-		}
-		return m.inputModalBox(title, field, hint, inner)
-	}
-	plain := "/ " + string(before) + "▏"
-	field := padTo(plain, inner)
-	if room := inner - len([]rune(plain)); ghost != "" && room > 0 {
+	head := "/ " + string(before)
+	field := padTo(head+string(after), inner)
+	if room := inner - len([]rune(head)); ghost != "" && room > 0 {
 		g := truncate(ghost, room)
-		field = plain + m.theme.Faint.Render(g) + strings.Repeat(" ", room-len([]rune(g)))
+		field = head + m.theme.Faint.Render(g) + strings.Repeat(" ", room-len([]rune(g)))
 		hint = "Tab/→ recall · " + hint
 	}
-	return m.inputModalBox(title, field, hint, inner)
+	return m.inputModalBox(title, field, hint, inner), 2 + len([]rune(head))
 }
 
 func (m Model) inputModalBox(title, field, hint string, inner int) string {
@@ -2101,21 +2151,28 @@ func (m Model) footerShort(km keymapView) (string, []clickZone) {
 	return line, zones
 }
 
-// keyMsgFor synthesizes the KeyMsg equivalent to pressing a binding's key.
-func keyMsgFor(k string) tea.KeyMsg {
+// isTextKey reports a printable key press (space included) with no
+// modifier but Shift — what v1 called KeyRunes/KeySpace.
+func isTextKey(msg tea.KeyPressMsg) bool {
+	return msg.Text != "" && msg.Mod&^tea.ModShift == 0
+}
+
+// keyMsgFor synthesizes the key press equivalent to pressing a binding's key.
+func keyMsgFor(k string) tea.KeyPressMsg {
 	switch k {
 	case "enter":
-		return tea.KeyMsg{Type: tea.KeyEnter}
+		return tea.KeyPressMsg{Code: tea.KeyEnter}
 	case "esc":
-		return tea.KeyMsg{Type: tea.KeyEscape}
+		return tea.KeyPressMsg{Code: tea.KeyEscape}
 	case " ", "space":
-		return tea.KeyMsg{Type: tea.KeySpace, Runes: []rune{' '}}
+		return tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}
 	case "up":
-		return tea.KeyMsg{Type: tea.KeyUp}
+		return tea.KeyPressMsg{Code: tea.KeyUp}
 	case "down":
-		return tea.KeyMsg{Type: tea.KeyDown}
+		return tea.KeyPressMsg{Code: tea.KeyDown}
 	default:
-		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(k)}
+		r := []rune(k)
+		return tea.KeyPressMsg{Code: r[0], Text: k}
 	}
 }
 
@@ -2275,4 +2332,14 @@ func (m *Model) persist() {
 	m.cfgMTime = config.ModTime(m.configPath)
 }
 
-func hit(msg tea.KeyMsg, b key.Binding) bool { return key.Matches(msg, b) }
+func hit(msg tea.KeyPressMsg, b key.Binding) bool { return key.Matches(msg, b) }
+
+// newViewport builds a content viewport with v1 key behavior: bubbles v2
+// scrolls sideways on ←/→ (and h/l), which would double the logs view's own
+// horizontal offset and swallow 'l'.
+func newViewport() viewport.Model {
+	vp := viewport.New()
+	vp.KeyMap.Left.SetEnabled(false)
+	vp.KeyMap.Right.SetEnabled(false)
+	return vp
+}

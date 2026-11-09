@@ -5,7 +5,8 @@ import (
 	"testing"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
+	xansi "github.com/charmbracelet/x/ansi"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -46,7 +47,7 @@ func deploymentModel(t *testing.T) Model {
 
 func TestEnterOnDeploymentDrillsToPods(t *testing.T) {
 	m := deploymentModel(t)
-	mi, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	if m.curType.Resource != "pods" {
 		t.Fatalf("Enter on a Deployment should switch to pods, got %q", m.curType.Key())
@@ -70,7 +71,7 @@ func TestEnterOnDeploymentDrillsToPods(t *testing.T) {
 		t.Errorf("header should show the drill context, got %q", m.header())
 	}
 	// Esc restores the deployments list.
-	mi, _ = m.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	mi, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	m = asModel(t, mi)
 	if m.curType.Resource != "deployments" || m.drillSelector != "" {
 		t.Fatalf("Esc should exit the drill, got type=%q selector=%q", m.curType.Key(), m.drillSelector)
@@ -79,12 +80,12 @@ func TestEnterOnDeploymentDrillsToPods(t *testing.T) {
 
 func TestYamlKeyStillShowsDetail(t *testing.T) {
 	m := deploymentModel(t)
-	mi, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	mi, _ := m.Update(tea.KeyPressMsg{Code: 'y', Text: "y"})
 	m = asModel(t, mi)
 	if m.screen != screenDetail {
 		t.Fatalf("'y' should open the YAML detail, screen=%d", m.screen)
 	}
-	if !strings.Contains(m.detail.View(), "kind: Deployment") {
+	if !strings.Contains(xansi.Strip(m.detail.GetContent()), "kind: Deployment") {
 		t.Error("YAML view should render the object")
 	}
 }
@@ -93,7 +94,7 @@ func TestDescribeShowsSummary(t *testing.T) {
 	m := deploymentModel(t)
 	m.objects[0].CreatedAt = time.Now().Add(-2 * time.Hour)
 	m.applyRows()
-	mi, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+	mi, cmd := m.Update(tea.KeyPressMsg{Code: 'd', Text: "d"})
 	m = asModel(t, mi)
 	if m.screen != screenDetail {
 		t.Fatalf("'d' should open describe, screen=%d", m.screen)
@@ -123,7 +124,7 @@ func asModel(t *testing.T, mi tea.Model) Model {
 func TestEventsFromDrillScopedToItsPods(t *testing.T) {
 	m := deploymentModel(t)
 	// Drill into Deployment/back.
-	mi, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	// The drilled list now shows one pod.
 	podType := model.ResourceType{Version: "v1", Kind: "Pod", Resource: "pods", Namespaced: true}
@@ -177,7 +178,7 @@ func TestOwnerKeyWalksUpTheChain(t *testing.T) {
 	m.layout()
 	m.applyRows()
 
-	mi, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'o'}})
+	mi, cmd := m.Update(tea.KeyPressMsg{Code: 'o', Text: "o"})
 	m = asModel(t, mi)
 	if m.curType.Kind != "ReplicaSet" {
 		t.Fatalf("'o' should switch to the owner type, got %q", m.curType.Key())
@@ -192,7 +193,7 @@ func TestOwnerKeyWalksUpTheChain(t *testing.T) {
 
 func TestOwnerKeyNoOwner(t *testing.T) {
 	m := deploymentModel(t) // deployment fixture has no ownerReferences
-	mi, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'o'}})
+	mi, cmd := m.Update(tea.KeyPressMsg{Code: 'o', Text: "o"})
 	m = asModel(t, mi)
 	if cmd != nil || m.curType.Kind != "Deployment" {
 		t.Fatalf("no owner: should stay put, type=%q", m.curType.Key())
@@ -209,7 +210,7 @@ func TestOwnerKeyNoOwner(t *testing.T) {
 func TestTypeSwitchClearsDrill(t *testing.T) {
 	m := deploymentModel(t)
 	// Drill into the deployment, then set a text filter too.
-	mi, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	m.filter.SetValue("leftover")
 	// Jump to another type via the ':' picker.
@@ -218,10 +219,10 @@ func TestTypeSwitchClearsDrill(t *testing.T) {
 	mi, _ = m.openPicker(pickType)
 	m = asModel(t, mi)
 	for _, r := range "services" {
-		mi, _ = m.handlePickerKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		mi, _ = m.handlePickerKey(tea.KeyPressMsg{Code: r, Text: string(r)})
 		m = asModel(t, mi)
 	}
-	mi, _ = m.handlePickerKey(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, _ = m.handlePickerKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 
 	if m.curType.Resource != "services" {
@@ -238,20 +239,20 @@ func TestTypeSwitchClearsDrill(t *testing.T) {
 func TestMouseToggle(t *testing.T) {
 	m := deploymentModel(t)
 	m.mouseOn = true
-	mi, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}})
+	mi, _ := m.Update(tea.KeyPressMsg{Code: 'm', Text: "m"})
 	m = asModel(t, mi)
 	if m.mouseOn {
 		t.Fatal("'m' should disable mouse capture")
 	}
-	if cmd == nil {
-		t.Fatal("toggle must emit a tea command to change mouse mode")
+	if m.View().MouseMode != tea.MouseModeNone {
+		t.Fatal("the view must release the mouse when capture is off")
 	}
 	if !strings.Contains(m.statusMsg, "copy") {
 		t.Errorf("status should explain copy mode, got %q", m.statusMsg)
 	}
-	mi, cmd = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}})
+	mi, _ = m.Update(tea.KeyPressMsg{Code: 'm', Text: "m"})
 	m = asModel(t, mi)
-	if !m.mouseOn || cmd == nil {
+	if !m.mouseOn || m.View().MouseMode != tea.MouseModeCellMotion {
 		t.Fatal("'m' again should re-enable mouse capture")
 	}
 }
@@ -262,8 +263,8 @@ func TestPickerTypingSwallowsGlobalKeys(t *testing.T) {
 	m = asModel(t, mi)
 	m.mouseOn = true
 	// Type "qm" — must go into the picker filter, not quit / toggle mouse.
-	m = send2(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
-	m = send2(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}})
+	m = send2(t, m, tea.KeyPressMsg{Code: 'q', Text: "q"})
+	m = send2(t, m, tea.KeyPressMsg{Code: 'm', Text: "m"})
 	if m.screen != screenPicker {
 		t.Fatalf("typing must stay in the picker, screen=%d", m.screen)
 	}
@@ -275,7 +276,7 @@ func TestPickerTypingSwallowsGlobalKeys(t *testing.T) {
 	}
 }
 
-func send2(t *testing.T, m Model, msg tea.KeyMsg) Model {
+func send2(t *testing.T, m Model, msg tea.KeyPressMsg) Model {
 	t.Helper()
 	mi, _ := m.Update(msg)
 	return asModel(t, mi)
@@ -346,14 +347,14 @@ func TestTypePickerOpensHelmViaColon(t *testing.T) {
 		t.Fatalf("helm entry should be pinned first, got %v", m.pickerOpts[:min(2, len(m.pickerOpts))])
 	}
 	for _, r := range "helm" {
-		mi, _ = m.handlePickerKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		mi, _ = m.handlePickerKey(tea.KeyPressMsg{Code: r, Text: string(r)})
 		m = asModel(t, mi)
 	}
 	row, _ := m.pickerWin.Selected()
 	if len(row) == 0 || row[0] != "◆ helm releases" {
 		t.Fatalf("typing 'helm' should narrow to the helm entry, got %v", row)
 	}
-	mi, _ = m.handlePickerKey(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, _ = m.handlePickerKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	// helm==nil → stays put with a message; with a client it opens screenHelm.
 	if m.screen == screenPicker {
@@ -372,7 +373,7 @@ func TestTypePickerShortNames(t *testing.T) {
 	m = asModel(t, mi)
 	// Typing the kubectl alias narrows to the aliased type.
 	for _, r := range "svc" {
-		mi, _ = m.handlePickerKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		mi, _ = m.handlePickerKey(tea.KeyPressMsg{Code: r, Text: string(r)})
 		m = asModel(t, mi)
 	}
 	row, ok := m.pickerWin.Selected()
@@ -383,7 +384,7 @@ func TestTypePickerShortNames(t *testing.T) {
 		t.Fatalf("option label should advertise the alias, got %q", row[0])
 	}
 	// Enter resolves the label back to the real type.
-	mi, _ = m.handlePickerKey(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, _ = m.handlePickerKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	if m.curType.Resource != "services" {
 		t.Fatalf("selection should switch to services, got %q", m.curType.Key())
@@ -614,7 +615,7 @@ func TestEnterOnNodeDrillsToItsPods(t *testing.T) {
 	m.layout()
 	m.applyRows()
 
-	mi, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	if cmd == nil {
 		t.Fatal("node drill should issue a list command")
@@ -630,7 +631,7 @@ func TestEnterOnNodeDrillsToItsPods(t *testing.T) {
 	}
 
 	// Esc restores the nodes list.
-	mi, _ = m.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	mi, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	m = asModel(t, mi)
 	if m.curType.Resource != "nodes" || m.drillNode != "" {
 		t.Fatalf("Esc should restore nodes, got type=%q drillNode=%q", m.curType.Key(), m.drillNode)
@@ -698,7 +699,7 @@ func TestDrillChainCronJobToContainers(t *testing.T) {
 	m := drillChainModel(t)
 
 	// CronJob → its Jobs (the foreign job must not show).
-	mi, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	if m.curType.Kind != "Job" || m.drillOwnerUID != "cron-uid-1" {
 		t.Fatalf("level 1: type=%q ownerUID=%q", m.curType.Key(), m.drillOwnerUID)
@@ -715,7 +716,7 @@ func TestDrillChainCronJobToContainers(t *testing.T) {
 	}
 
 	// Job → its Pods (label selector).
-	mi, cmd = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, cmd = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	if m.curType.Kind != "Pod" || m.drillSelector != "job-name=nightly-123" {
 		t.Fatalf("level 2: type=%q selector=%q", m.curType.Key(), m.drillSelector)
@@ -726,24 +727,24 @@ func TestDrillChainCronJobToContainers(t *testing.T) {
 	}
 
 	// Pod → its containers.
-	mi, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	if m.screen != screenContainers || len(m.containerRows) != 1 || m.containerRows[0].Name != "worker" {
 		t.Fatalf("level 3: screen=%d rows=%+v", m.screen, m.containerRows)
 	}
 
 	// Esc pops one level at a time: containers → pods → jobs → cronjobs.
-	mi, _ = m.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	mi, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	m = asModel(t, mi)
 	if m.screen != screenList || m.curType.Kind != "Pod" {
 		t.Fatalf("Esc from containers: screen=%d type=%q", m.screen, m.curType.Key())
 	}
-	mi, _ = m.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	mi, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	m = asModel(t, mi)
 	if m.curType.Kind != "Job" || m.drillOwnerUID != "cron-uid-1" {
 		t.Fatalf("Esc to jobs: type=%q ownerUID=%q", m.curType.Key(), m.drillOwnerUID)
 	}
-	mi, _ = m.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	mi, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	m = asModel(t, mi)
 	if m.curType.Kind != "CronJob" || m.drilling() {
 		t.Fatalf("Esc to cronjobs: type=%q drilling=%v", m.curType.Key(), m.drilling())
@@ -806,7 +807,7 @@ func TestDrillIngressToServices(t *testing.T) {
 	m.objects = []model.ResourceObject{{Type: ingType, Namespace: "demo", Name: "web", Raw: ingRaw}}
 	m.applyRows()
 
-	mi, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	if m.curType.Kind != "Service" {
 		t.Fatalf("Ingress must drill to services, got %q", m.curType.Key())
@@ -824,7 +825,7 @@ func TestDrillIngressToServices(t *testing.T) {
 		Raw: map[string]any{"apiVersion": "v1", "kind": "ConfigMap",
 			"metadata": map[string]any{"name": "cfg", "namespace": "demo"}}}}
 	m2.applyRows()
-	mi, _ = m2.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, _ = m2.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m2 = asModel(t, mi)
 	if m2.screen != screenDetail {
 		t.Fatalf("a childless kind must open the YAML detail, screen=%d", m2.screen)

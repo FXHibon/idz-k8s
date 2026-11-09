@@ -44,7 +44,7 @@ access/RBAC view, read-only diff) are **out of v1** (backlog).
 
 **Primary Dependencies**:
 - `k8s.io/client-go`, `k8s.io/apimachinery`, `k8s.io/api`, `k8s.io/cli-runtime` — kubeconfig, dynamic + typed clients, discovery (incl. CRDs), informers, admin verbs (v3) + SPDY exec/port-forward
-- `github.com/charmbracelet/bubbletea` / `bubbles` / `lipgloss` — TUI runtime, widgets, styling (mouse + graceful degradation)
+- `charm.land/bubbletea/v2` / `bubbles/v2` / `lipgloss/v2` — TUI runtime, widgets, styling (mouse + graceful degradation; v2 since 2026-11, for the real terminal cursor)
 - ~~`github.com/NimbleMarkets/ntcharts`~~ — replaced by custom Unicode charts (research D5)
 - `github.com/prometheus/client_golang/api` (+ `api/prometheus/v1`) — Prometheus HTTP API / PromQL, single metrics source
 - `helm.sh/helm/v3` — Helm release list/history/detail via its storage driver; rollback/uninstall (v3, confirmed)

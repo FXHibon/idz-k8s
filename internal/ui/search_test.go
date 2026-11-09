@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/iadvize/idz-k8s/internal/config"
 	"github.com/iadvize/idz-k8s/internal/kube"
@@ -28,19 +28,19 @@ func TestViewportSearchHighlightsAndNavigates(t *testing.T) {
 	m := detailModel(t)
 
 	// '/' opens the prompt; typing is captured (no 'q' quit, no 'm' toggle).
-	mi, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+	mi, _ := m.handleKey(tea.KeyPressMsg{Code: '/', Text: "/"})
 	m = asModel(t, mi)
 	if !m.searchTyping {
 		t.Fatal("'/' must open the search prompt on the detail view")
 	}
 	for _, r := range "image" {
-		mi, cmd := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		mi, cmd := m.handleKey(tea.KeyPressMsg{Code: r, Text: string(r)})
 		if cmd != nil {
 			t.Fatal("typing in the search prompt triggered a command")
 		}
 		m = asModel(t, mi)
 	}
-	mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, _ = m.handleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 
 	if len(m.searchHits) != 2 || m.searchIdx != 0 {
@@ -51,24 +51,24 @@ func TestViewportSearchHighlightsAndNavigates(t *testing.T) {
 	}
 
 	// n / N navigate with wrap-around.
-	mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("n")})
+	mi, _ = m.handleKey(tea.KeyPressMsg{Code: 'n', Text: "n"})
 	m = asModel(t, mi)
 	if m.searchIdx != 1 {
 		t.Fatalf("n: idx=%d want 1", m.searchIdx)
 	}
-	mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("n")})
+	mi, _ = m.handleKey(tea.KeyPressMsg{Code: 'n', Text: "n"})
 	m = asModel(t, mi)
 	if m.searchIdx != 0 {
 		t.Fatalf("n wrap: idx=%d want 0", m.searchIdx)
 	}
-	mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("N")})
+	mi, _ = m.handleKey(tea.KeyPressMsg{Code: 'N', Text: "N"})
 	m = asModel(t, mi)
 	if m.searchIdx != 1 {
 		t.Fatalf("N wrap: idx=%d want 1", m.searchIdx)
 	}
 
 	// First Esc clears the search and stays; second Esc leaves the screen.
-	mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyEscape})
+	mi, _ = m.handleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
 	m = asModel(t, mi)
 	if m.searchQuery != "" || m.screen != screenDetail {
 		t.Fatalf("first Esc must only clear the search (query=%q screen=%d)", m.searchQuery, m.screen)
@@ -76,7 +76,7 @@ func TestViewportSearchHighlightsAndNavigates(t *testing.T) {
 	if len(m.searchHits) != 0 {
 		t.Fatal("clearing must drop the recorded hits")
 	}
-	mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyEscape})
+	mi, _ = m.handleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
 	m = asModel(t, mi)
 	if m.screen != screenList {
 		t.Fatalf("second Esc must go back, screen=%d", m.screen)

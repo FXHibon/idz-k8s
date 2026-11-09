@@ -126,6 +126,17 @@ Keep it that way — it is what makes everything testable with fakes.
   scrolled sideways. `ctrl+l` clears the buffer only — never the stream. Slicing/folding log lines MUST use `xansi` (Wrap/TruncateLeft):
   merged lines carry a colored pod prefix and rune slicing cuts escape
   sequences, bleeding color across the screen.
+- **Input boxes use the REAL terminal cursor** (Bubble Tea v2, owner
+  request 2026-11-09): `inputModal`/`pickerModal` draw no caret, `render()`
+  returns the caret cell and `View()` sets `tea.View.Cursor` (a bar — v2
+  always sends a shape and resets the terminal's own on hide/exit). Never
+  draw a `▏`/block caret again: it takes a column and shifts the text. A new
+  input box goes through `input(...)` in `render()` so its cursor is placed.
+- **Bubble Tea v2 is declarative**: alt screen, mouse mode and cursor live in
+  `View()` — never return `tea.EnableMouseCellMotion`-style commands. Keys are
+  `tea.KeyPressMsg` (`msg.Code`, `msg.Text`; printable = `isTextKey`), space
+  is `"space"` in bindings. Content viewports come from `newViewport()`
+  (bubbles v2's own ←/→ side-scroll is disabled: logs handle it).
 - **Never accumulate content in a viewport's `View()`** — it is windowed and
   padded. Use a real buffer (see `logBuf`).
 - **Typing modes must swallow keys BEFORE global shortcuts** (see the picker

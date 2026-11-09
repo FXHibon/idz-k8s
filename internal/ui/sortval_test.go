@@ -6,7 +6,7 @@ package ui
 import (
 	"testing"
 
-	"github.com/charmbracelet/bubbles/textinput"
+	"charm.land/bubbles/v2/textinput"
 
 	"github.com/iadvize/idz-k8s/internal/config"
 	"github.com/iadvize/idz-k8s/internal/kube"

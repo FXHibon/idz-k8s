@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/iadvize/idz-k8s/internal/kube"
@@ -431,8 +431,8 @@ func (m Model) confirmModal() string {
 }
 
 // handleConfirmKey consumes every key while the confirmation modal is open.
-func (m Model) handleConfirmKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.Type {
+func (m Model) handleConfirmKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.Code {
 	case tea.KeyEnter:
 		cmd := m.confirmCmd
 		m.confirming, m.confirmCmd = false, nil
@@ -534,7 +534,7 @@ func (m Model) openForwardPrompt(obj model.ResourceObject) (tea.Model, tea.Cmd) 
 }
 
 // handlePromptKey consumes every key while a value prompt is open.
-func (m Model) handlePromptKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handlePromptKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch act, _ := editText(&m.promptInput, msg); act {
 	case editCommit:
 		action := m.promptAction

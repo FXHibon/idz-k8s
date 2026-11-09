@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/iadvize/idz-k8s/internal/kube"
 	"github.com/iadvize/idz-k8s/internal/model"
@@ -77,7 +77,7 @@ func (m Model) fetchEventTerminations() tea.Cmd {
 // handleEventsKey (outside typing mode): '/' edits the filter, 'k' opens the
 // kind selector, 'n' the namespace picker. ↑/↓ move the Recent selection
 // (highlighted on the timeline); PgUp/PgDn scroll the view.
-func (m Model) handleEventsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleEventsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case hit(msg, m.keys.Open):
 		// Jump to the object the selected event references (consistency:
@@ -103,7 +103,7 @@ func (m Model) handleEventsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.renderEvents()
 		return m, nil
 	}
-	switch msg.Type {
+	switch msg.Code {
 	case tea.KeyUp:
 		if m.recentSel > 0 {
 			m.recentSel--

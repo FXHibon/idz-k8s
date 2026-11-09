@@ -6,7 +6,9 @@
 package theme
 
 import (
-	"github.com/charmbracelet/lipgloss"
+	"os"
+
+	"charm.land/lipgloss/v2"
 
 	"github.com/iadvize/idz-k8s/internal/model"
 )
@@ -24,7 +26,6 @@ type Theme struct {
 	Selected  lipgloss.Style
 	Highlight lipgloss.Style // inverse video, for timeline marker highlighting
 	Faint     lipgloss.Style
-	Cursor    lipgloss.Style // block caret over the rune under an input's cursor
 	Error     lipgloss.Style
 	Ok        lipgloss.Style
 	Warning   lipgloss.Style
@@ -60,7 +61,6 @@ func Default() Theme {
 		Selected:  lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("10")),
 		Highlight: lipgloss.NewStyle().Reverse(true).Bold(true),
 		Faint:     lipgloss.NewStyle().Faint(true),
-		Cursor:    lipgloss.NewStyle().Reverse(true),
 		Error:     lipgloss.NewStyle().Foreground(lipgloss.Color("204")),
 		Ok:        lipgloss.NewStyle().Foreground(lipgloss.Color("78")),
 		Warning:   lipgloss.NewStyle().Foreground(lipgloss.Color("214")),
@@ -93,7 +93,6 @@ func light() Theme {
 		Selected:  lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("28")),
 		Highlight: lipgloss.NewStyle().Reverse(true).Bold(true),
 		Faint:     lipgloss.NewStyle().Foreground(lipgloss.Color("245")),
-		Cursor:    lipgloss.NewStyle().Reverse(true),
 		Error:     lipgloss.NewStyle().Foreground(lipgloss.Color("160")),
 		Ok:        lipgloss.NewStyle().Foreground(lipgloss.Color("28")),
 		Warning:   lipgloss.NewStyle().Foreground(lipgloss.Color("130")),
@@ -125,7 +124,7 @@ func ForName(name string) Theme {
 	case "light":
 		return light()
 	default: // auto, none, unknown
-		if lipgloss.HasDarkBackground() {
+		if lipgloss.HasDarkBackground(os.Stdin, os.Stdout) {
 			return Default()
 		}
 		return light()

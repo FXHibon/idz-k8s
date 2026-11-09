@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	xansi "github.com/charmbracelet/x/ansi"
 
 	"github.com/iadvize/idz-k8s/internal/config"
@@ -41,7 +41,7 @@ func TestLogsHorizontalScroll(t *testing.T) {
 
 	// Three steps of 20 columns bring column 60 into view.
 	for range 3 {
-		mi, _ := m.Update(tea.KeyMsg{Type: tea.KeyRight})
+		mi, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyRight})
 		m = asModel(t, mi)
 	}
 	if m.logHOffset != 3*logHStep {
@@ -56,7 +56,7 @@ func TestLogsHorizontalScroll(t *testing.T) {
 
 	// ← returns; the offset floors at 0 (no negative scroll).
 	for range 5 {
-		mi, _ := m.Update(tea.KeyMsg{Type: tea.KeyLeft})
+		mi, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
 		m = asModel(t, mi)
 	}
 	if m.logHOffset != 0 {
@@ -65,7 +65,7 @@ func TestLogsHorizontalScroll(t *testing.T) {
 
 	// Scrolling far right stops within the content (a screen stays visible).
 	for range 20 {
-		mi, _ := m.Update(tea.KeyMsg{Type: tea.KeyRight})
+		mi, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyRight})
 		m = asModel(t, mi)
 	}
 	if m.logHOffset > m.logMaxWidth() {
@@ -81,13 +81,13 @@ func TestLogsHorizontalScroll(t *testing.T) {
 func TestLogsWrapToggle(t *testing.T) {
 	long := strings.Repeat("word ", 60) // ~300 cells on an 80-col terminal
 	m := logsModel(t, long)
-	mi, _ := m.Update(tea.KeyMsg{Type: tea.KeyRight})
+	mi, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyRight})
 	m = asModel(t, mi)
 	if m.logHOffset == 0 {
 		t.Fatal("precondition: the view should be shifted before wrapping")
 	}
 
-	mi, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'w'}})
+	mi, _ = m.Update(tea.KeyPressMsg{Code: 'w', Text: "w"})
 	m = asModel(t, mi)
 	if !m.logWrap || m.logHOffset != 0 {
 		t.Fatalf("wrap ON must reset the offset: wrap=%v offset=%d", m.logWrap, m.logHOffset)
@@ -107,14 +107,14 @@ func TestLogsWrapToggle(t *testing.T) {
 		t.Fatalf("wrapping must not drop content:\n%s", raw)
 	}
 	// ←/→ are inert while wrapping, and say so.
-	mi, _ = m.Update(tea.KeyMsg{Type: tea.KeyRight})
+	mi, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyRight})
 	m = asModel(t, mi)
 	if m.logHOffset != 0 || !strings.Contains(m.statusMsg, "wrap is ON") {
 		t.Fatalf("scrolling must be a no-op while wrapping: offset=%d msg=%q", m.logHOffset, m.statusMsg)
 	}
 
 	// 'w' again turns it off.
-	mi, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'w'}})
+	mi, _ = m.Update(tea.KeyPressMsg{Code: 'w', Text: "w"})
 	m = asModel(t, mi)
 	if m.logWrap || !strings.Contains(m.statusMsg, "wrap OFF") {
 		t.Fatalf("second 'w' must turn wrapping off, msg=%q", m.statusMsg)
@@ -133,8 +133,9 @@ func TestLogsScrollAndWrapKeepANSIIntact(t *testing.T) {
 		t.Helper()
 		raw := m.vpRaw[screenLogs]
 		// An unterminated escape sequence is the failure mode: every ESC[ we
-		// emit must be closed by the reset that lipgloss appends.
-		if strings.Count(raw, "\x1b[") > 0 && !strings.Contains(raw, "\x1b[0m") {
+		// emit must be closed by the reset that lipgloss appends (lipgloss v2
+		// writes the short form ESC[m).
+		if strings.Count(raw, "\x1b[") > 0 && !strings.Contains(raw, "\x1b[0m") && !strings.Contains(raw, "\x1b[m") {
 			t.Fatalf("%s: color left unterminated:\n%q", what, raw)
 		}
 		for _, l := range strings.Split(raw, "\n") {
@@ -147,7 +148,7 @@ func TestLogsScrollAndWrapKeepANSIIntact(t *testing.T) {
 
 	// Shift right past the colored prefix.
 	for range 2 {
-		mi, _ := m.Update(tea.KeyMsg{Type: tea.KeyRight})
+		mi, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyRight})
 		m = asModel(t, mi)
 	}
 	check("shifted")
@@ -157,7 +158,7 @@ func TestLogsScrollAndWrapKeepANSIIntact(t *testing.T) {
 	}
 
 	// Wrap the colored line.
-	mi, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'w'}})
+	mi, _ := m.Update(tea.KeyPressMsg{Code: 'w', Text: "w"})
 	m = asModel(t, mi)
 	check("wrapped")
 	if !strings.Contains(xansi.Strip(m.vpRaw[screenLogs]), "[web-1]") {
@@ -169,7 +170,7 @@ func TestLogsScrollAndWrapKeepANSIIntact(t *testing.T) {
 // folded too (the buffer is re-rendered, never appended raw).
 func TestLogsNewLinesRespectTheMode(t *testing.T) {
 	m := logsModel(t, "first")
-	mi, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'w'}})
+	mi, _ := m.Update(tea.KeyPressMsg{Code: 'w', Text: "w"})
 	m = asModel(t, mi)
 	mi, _ = m.Update(logLineMsg{Text: strings.Repeat("late ", 60)})
 	m = asModel(t, mi)
@@ -184,7 +185,7 @@ func TestLogsNewLinesRespectTheMode(t *testing.T) {
 // without touching the stream — new lines keep arriving afterwards.
 func TestLogsClear(t *testing.T) {
 	m := logsModel(t, "first line", "second line")
-	mi, _ := m.Update(tea.KeyMsg{Type: tea.KeyCtrlL})
+	mi, _ := m.Update(tea.KeyPressMsg{Code: 'l', Mod: tea.ModCtrl})
 	m = asModel(t, mi)
 	if len(m.logBuf) != 0 {
 		t.Fatalf("ctrl+l must empty the buffer, got %v", m.logBuf)
@@ -202,9 +203,9 @@ func TestLogsClear(t *testing.T) {
 		t.Fatalf("new lines must still arrive: %v", m.logBuf)
 	}
 	// Clearing an empty buffer is a no-op that says so.
-	mi, _ = m.Update(tea.KeyMsg{Type: tea.KeyCtrlL})
+	mi, _ = m.Update(tea.KeyPressMsg{Code: 'l', Mod: tea.ModCtrl})
 	m = asModel(t, mi)
-	mi, _ = m.Update(tea.KeyMsg{Type: tea.KeyCtrlL})
+	mi, _ = m.Update(tea.KeyPressMsg{Code: 'l', Mod: tea.ModCtrl})
 	m = asModel(t, mi)
 	if !strings.Contains(m.statusMsg, "already empty") {
 		t.Fatalf("a second clear must be explicit, got %q", m.statusMsg)
@@ -215,7 +216,7 @@ func TestLogsClear(t *testing.T) {
 // in the stream with a full-width rule carrying its time.
 func TestLogsSeparator(t *testing.T) {
 	m := logsModel(t, "before the mark")
-	mi, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'M'}})
+	mi, _ := m.Update(tea.KeyPressMsg{Code: 'M', Text: "M"})
 	m = asModel(t, mi)
 	mi, _ = m.Update(logLineMsg{Text: "after the mark"})
 	m = asModel(t, mi)
@@ -245,29 +246,29 @@ func TestLogsSeparator(t *testing.T) {
 	}
 
 	// Wrapping does not fold it, and scrolling sideways keeps it full width.
-	mi, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'w'}})
+	mi, _ = m.Update(tea.KeyPressMsg{Code: 'w', Text: "w"})
 	m = asModel(t, mi)
 	if sep := strings.Split(xansi.Strip(m.vpRaw[screenLogs]), "\n")[1]; len([]rune(sep)) != 50 {
 		t.Fatalf("wrapped separator=%q", sep)
 	}
-	mi, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'w'}}) // wrap off
+	mi, _ = m.Update(tea.KeyPressMsg{Code: 'w', Text: "w"}) // wrap off
 	m = asModel(t, mi)
 	m.logBuf = append(m.logBuf, strings.Repeat("x", 300))
 	m.renderLogs()
-	mi, _ = m.Update(tea.KeyMsg{Type: tea.KeyRight})
+	mi, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyRight})
 	m = asModel(t, mi)
 	if sep := strings.Split(xansi.Strip(m.vpRaw[screenLogs]), "\n")[1]; len([]rune(sep)) != 50 {
 		t.Fatalf("a shifted view must keep the separator full width, got %d: %q", len([]rune(sep)), sep)
 	}
 
 	// A second mark adds a second rule.
-	mi, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'M'}})
+	mi, _ = m.Update(tea.KeyPressMsg{Code: 'M', Text: "M"})
 	m = asModel(t, mi)
 	if n := strings.Count(xansi.Strip(m.vpRaw[screenLogs]), "──"); n < 2 {
 		t.Fatalf("expected two separators, found %d", n)
 	}
 	// Clearing removes them too.
-	mi, _ = m.Update(tea.KeyMsg{Type: tea.KeyCtrlL})
+	mi, _ = m.Update(tea.KeyPressMsg{Code: 'l', Mod: tea.ModCtrl})
 	m = asModel(t, mi)
 	if len(m.logBuf) != 0 {
 		t.Fatalf("clear must drop separators as well: %v", m.logBuf)

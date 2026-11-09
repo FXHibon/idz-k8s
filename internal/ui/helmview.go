@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/table"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/table"
+	tea "charm.land/bubbletea/v2"
 	xansi "github.com/charmbracelet/x/ansi"
 	"sigs.k8s.io/yaml"
 
@@ -153,7 +153,7 @@ func (m *Model) renderHelm() {
 	m.helmWin.Sync(&m.helmTable)
 }
 
-func (m Model) handleHelmKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleHelmKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case hit(msg, m.keys.Open):
 		return m.openHelmDetail(false)
@@ -259,7 +259,7 @@ func (m *Model) renderHelmDetail(msg helmDetailMsg) {
 // handleHelmDetailKey: ↑/↓ walk the deployed resources, Enter opens the
 // selected resource's DEFINITION (the chart's rendered manifest), 'y' its
 // LIVE object from the cluster, 'v' the values (owner request 2026-08-05).
-func (m Model) handleHelmDetailKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleHelmDetailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	res := m.helmDetail.detail.Resources
 	switch {
 	case hit(msg, m.keys.Open):
@@ -272,7 +272,7 @@ func (m Model) handleHelmDetailKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.helmHist.GotoTop()
 		return m, nil
 	}
-	switch msg.Type {
+	switch msg.Code {
 	case tea.KeyUp:
 		if m.helmResSel > 0 {
 			m.helmResSel--

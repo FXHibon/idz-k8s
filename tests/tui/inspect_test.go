@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/x/exp/teatest"
+	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/exp/teatest/v2"
 
 	"github.com/iadvize/idz-k8s/internal/config"
 	"github.com/iadvize/idz-k8s/internal/ui"
@@ -47,10 +47,10 @@ func TestListThenDetailRendersPod(t *testing.T) {
 
 	// 'y' opens the YAML detail → kind: Pod (FR-004). Enter now walks the
 	// drill chain into the pod's containers (owner request 2026-07-31).
-	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")})
+	tm.Send(tea.KeyPressMsg{Code: 'y', Text: "y"})
 	waitForContains(t, tm, "kind: Pod")
 
-	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.Send(tea.KeyPressMsg{Code: 'q', Text: "q"})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
 }
 
@@ -73,10 +73,10 @@ func TestEnterOnPodOpensContainers(t *testing.T) {
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(120, 30))
 
 	waitForContains(t, tm, "web-1")
-	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
 	waitForAll(t, tm, "sidecar", "CrashLoopBackOff", "nginx:1.27")
 
-	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.Send(tea.KeyPressMsg{Code: 'q', Text: "q"})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
 }
 
@@ -90,9 +90,9 @@ func TestSecretMaskedByDefault(t *testing.T) {
 	waitForContains(t, tm, "creds")
 
 	// Open detail: the secret value must be masked, not shown in clear (FR-015).
-	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
 	waitForContains(t, tm, "••••••")
 
-	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	tm.Send(tea.KeyPressMsg{Code: 'q', Text: "q"})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
 }

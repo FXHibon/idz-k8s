@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	xansi "github.com/charmbracelet/x/ansi"
 
 	"github.com/iadvize/idz-k8s/internal/config"
@@ -137,8 +137,8 @@ func TestEmptyDrillStatusFromObjectsMsg(t *testing.T) {
 	if !strings.Contains(m.statusMsg, "CronJob/nightly") || strings.Contains(m.statusMsg, "broken link") {
 		t.Fatalf("status=%q", m.statusMsg)
 	}
-	if !strings.Contains(xansi.Strip(m.View()), "history") {
-		t.Fatalf("the view must explain the empty drill:\n%s", xansi.Strip(m.View()))
+	if !strings.Contains(xansi.Strip(m.View().Content), "history") {
+		t.Fatalf("the view must explain the empty drill:\n%s", xansi.Strip(m.View().Content))
 	}
-	_ = tea.KeyMsg{}
+	_ = tea.KeyPressMsg{}
 }

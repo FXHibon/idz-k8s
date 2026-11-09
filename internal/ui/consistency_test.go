@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/iadvize/idz-k8s/internal/config"
 	"github.com/iadvize/idz-k8s/internal/kube"
@@ -81,29 +81,29 @@ func TestSearchWorksOnEveryContentView(t *testing.T) {
 		m.screen = sc
 		m.setContent(sc, "alpha\nsomething privileged here\nomega")
 
-		mi, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+		mi, _ := m.handleKey(tea.KeyPressMsg{Code: '/', Text: "/"})
 		m = asModel(t, mi)
 		if !m.searchTyping {
 			t.Errorf("screen %d: '/' must open the search", sc)
 			continue
 		}
 		for _, r := range "privileged" {
-			mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+			mi, _ = m.handleKey(tea.KeyPressMsg{Code: r, Text: string(r)})
 			m = asModel(t, mi)
 		}
-		mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
+		mi, _ = m.handleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 		m = asModel(t, mi)
 		if len(m.searchHits) == 0 || m.searchScreen != sc {
 			t.Errorf("screen %d: hits=%v searchScreen=%d", sc, m.searchHits, m.searchScreen)
 			continue
 		}
-		mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyEscape})
+		mi, _ = m.handleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
 		m = asModel(t, mi)
 		if m.searchQuery != "" || m.screen != sc {
 			t.Errorf("screen %d: first Esc must clear and stay (query=%q screen=%d)", sc, m.searchQuery, m.screen)
 			continue
 		}
-		mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyEscape})
+		mi, _ = m.handleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
 		m = asModel(t, mi)
 		if m.screen == sc {
 			t.Errorf("screen %d: second Esc must leave the view", sc)
@@ -147,24 +147,24 @@ func TestSizingOverviewFilter(t *testing.T) {
 	if len(m.sizingRows) != 2 {
 		t.Fatalf("master rows=%d", len(m.sizingRows))
 	}
-	mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+	mi, _ = m.handleKey(tea.KeyPressMsg{Code: '/', Text: "/"})
 	m = asModel(t, mi)
 	if !m.sizingFiltering {
 		t.Fatal("'/' must open the sizing filter")
 	}
 	for _, r := range "front" {
-		mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		mi, _ = m.handleKey(tea.KeyPressMsg{Code: r, Text: string(r)})
 		m = asModel(t, mi)
 	}
-	mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, _ = m.handleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	if len(m.sizingRows) != 1 || m.sizingObjs[0].Name != "front" {
 		t.Fatalf("filter broken: rows=%+v objs=%+v", m.sizingRows, m.sizingObjs)
 	}
 	// Esc while typing clears back to the full set.
-	mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+	mi, _ = m.handleKey(tea.KeyPressMsg{Code: '/', Text: "/"})
 	m = asModel(t, mi)
-	mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyEscape})
+	mi, _ = m.handleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
 	m = asModel(t, mi)
 	if len(m.sizingRows) != 2 {
 		t.Fatalf("clear broken: rows=%d", len(m.sizingRows))
@@ -213,16 +213,16 @@ func TestPaletteOpensViewsFromAnywhere(t *testing.T) {
 
 	// '>' opens the palette; type-to-filter narrows to topology; Enter opens
 	// it — no dedicated shortcut anymore (owner decision 2026-07-12).
-	mi, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(">")})
+	mi, _ := m.handleKey(tea.KeyPressMsg{Code: '>', Text: ">"})
 	m = asModel(t, mi)
 	if m.screen != screenPicker || m.pickerKind != pickPalette {
 		t.Fatalf("'>' must open the palette (screen=%d kind=%d)", m.screen, m.pickerKind)
 	}
 	for _, r := range "topo" {
-		mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		mi, _ = m.handleKey(tea.KeyPressMsg{Code: r, Text: string(r)})
 		m = asModel(t, mi)
 	}
-	mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, _ = m.handleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	if m.screen != screenTopology {
 		t.Fatalf("palette must open topology, screen=%d", m.screen)
@@ -230,7 +230,7 @@ func TestPaletteOpensViewsFromAnywhere(t *testing.T) {
 
 	// The old dedicated shortcut is gone: 't' does nothing on the list.
 	m.screen = screenList
-	mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("t")})
+	mi, _ = m.handleKey(tea.KeyPressMsg{Code: 't', Text: "t"})
 	m = asModel(t, mi)
 	if m.screen != screenList {
 		t.Fatalf("'t' must no longer open topology, screen=%d", m.screen)
@@ -238,7 +238,7 @@ func TestPaletteOpensViewsFromAnywhere(t *testing.T) {
 
 	// Navigation keys are global now: ':' works from the topology view.
 	m.screen = screenTopology
-	mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(":")})
+	mi, _ = m.handleKey(tea.KeyPressMsg{Code: ':', Text: ":"})
 	m = asModel(t, mi)
 	if m.screen != screenPicker || m.pickerKind != pickType {
 		t.Fatalf("':' must open the type picker from any view (screen=%d kind=%d)", m.screen, m.pickerKind)
@@ -271,16 +271,16 @@ func TestUsageTable(t *testing.T) {
 	}
 
 	// '/' filters rows like every other table.
-	mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+	mi, _ = m.handleKey(tea.KeyPressMsg{Code: '/', Text: "/"})
 	m = asModel(t, mi)
 	if !m.usageTyping {
 		t.Fatal("'/' must open the usage filter")
 	}
 	for _, r := range "big" {
-		mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		mi, _ = m.handleKey(tea.KeyPressMsg{Code: r, Text: string(r)})
 		m = asModel(t, mi)
 	}
-	mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, _ = m.handleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	if len(m.usageRows) != 1 || m.usageRows[0].Name != "big" {
 		t.Fatalf("filter broken: %+v", m.usageRows)
@@ -289,7 +289,7 @@ func TestUsageTable(t *testing.T) {
 	// 's' cycles the sortable columns; 'S' flips.
 	m.usageFilterQ = ""
 	m.applyUsageFilter()
-	mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")})
+	mi, _ = m.handleKey(tea.KeyPressMsg{Code: 's', Text: "s"})
 	m = asModel(t, mi)
 	if m.usageSortCol != 0 || m.usageRows[0].Name != "big" {
 		t.Fatalf("name sort: col=%d first=%s", m.usageSortCol, m.usageRows[0].Name)
@@ -327,21 +327,21 @@ func TestDiagSelectionEnterAndSeverityFilter(t *testing.T) {
 		t.Fatalf("refs=%v", m.diagRefs)
 	}
 	// Down selects the second finding; Enter opens its describe.
-	mi, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyDown})
+	mi, _ := m.handleKey(tea.KeyPressMsg{Code: tea.KeyDown})
 	m = asModel(t, mi)
-	mi, cmd := m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, cmd := m.handleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	if m.screen != screenDetail || cmd == nil || m.detailName != "slow" {
 		t.Fatalf("Enter must open the pod describe (screen=%d name=%q)", m.screen, m.detailName)
 	}
 	// Esc returns to the failures view, not the list.
-	mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyEscape})
+	mi, _ = m.handleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
 	m = asModel(t, mi)
 	if m.screen != screenDiag {
 		t.Fatalf("Esc must return to failures, screen=%d", m.screen)
 	}
 	// 'w' keeps only error-level findings.
-	mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("w")})
+	mi, _ = m.handleKey(tea.KeyPressMsg{Code: 'w', Text: "w"})
 	m = asModel(t, mi)
 	if len(m.diagRefs) != 1 || m.diagRefs[0].name != "boom" {
 		t.Fatalf("errors-only filter broken: %v", m.diagRefs)
@@ -378,12 +378,12 @@ func TestEventsEnterOpensObject(t *testing.T) {
 		{Reason: "BackOff", Type: "Warning", Message: "x", ObjKind: "Pod", ObjName: "web-1", Namespace: "demo", Time: time.Now()},
 	}
 	m.renderEvents()
-	mi, cmd := m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, cmd := m.handleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	if m.screen != screenDetail || cmd == nil || m.detailName != "web-1" {
 		t.Fatalf("Enter must open the event's object (screen=%d name=%q)", m.screen, m.detailName)
 	}
-	mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyEscape})
+	mi, _ = m.handleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
 	m = asModel(t, mi)
 	if m.screen != screenEvents {
 		t.Fatalf("Esc must return to the timeline, screen=%d", m.screen)
@@ -393,18 +393,18 @@ func TestEventsEnterOpensObject(t *testing.T) {
 // TestHelmSort: 's' cycles columns with arrows, 'S' flips — like every table.
 func TestHelmSort(t *testing.T) {
 	m := helmModel(t)
-	mi, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")})
+	mi, _ := m.handleKey(tea.KeyPressMsg{Code: 's', Text: "s"})
 	m = asModel(t, mi)
 	if m.helmSortCol != 0 {
 		t.Fatalf("sortCol=%d", m.helmSortCol)
 	}
 	// Column 1 = RELEASE: back-api before front ascending.
-	mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")})
+	mi, _ = m.handleKey(tea.KeyPressMsg{Code: 's', Text: "s"})
 	m = asModel(t, mi)
 	if got := m.helmWin.rows[0][1]; got != "back-api" {
 		t.Fatalf("asc sort first=%q", got)
 	}
-	mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("S")})
+	mi, _ = m.handleKey(tea.KeyPressMsg{Code: 'S', Text: "S"})
 	m = asModel(t, mi)
 	if got := m.helmWin.rows[0][1]; got != "front" {
 		t.Fatalf("desc sort first=%q", got)
@@ -432,12 +432,12 @@ func TestTopologySelectionAndDrill(t *testing.T) {
 		t.Fatalf("node lines=%v", m.topoNodeLines)
 	}
 	// Down selects node-b; Enter drills into its pods.
-	mi, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyDown})
+	mi, _ := m.handleKey(tea.KeyPressMsg{Code: tea.KeyDown})
 	m = asModel(t, mi)
 	if m.topoSel != 1 {
 		t.Fatalf("topoSel=%d", m.topoSel)
 	}
-	mi, cmd := m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, cmd := m.handleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	if m.screen != screenList || m.drillNode != "node-b" || cmd == nil {
 		t.Fatalf("Enter must drill (screen=%d node=%q)", m.screen, m.drillNode)
@@ -455,12 +455,12 @@ func TestUsageEnterOpensRowObject(t *testing.T) {
 		{Namespace: "demo", Name: "web-1", Pods: 1, CPU: 1, HasCPU: true},
 	}})
 	m = asModel(t, mi)
-	mi, cmd := m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, cmd := m.handleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	if m.screen != screenDetail || cmd == nil || m.detailName != "web-1" {
 		t.Fatalf("Enter must open the row's object (screen=%d name=%q)", m.screen, m.detailName)
 	}
-	mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyEscape})
+	mi, _ = m.handleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
 	m = asModel(t, mi)
 	if m.screen != screenTop {
 		t.Fatalf("Esc must return to usage, screen=%d", m.screen)
@@ -479,7 +479,7 @@ func TestFindingsMouseClickSelects(t *testing.T) {
 	})
 	// Click the second finding's line (content y = line + 2 with no scroll).
 	y := m.diagLines[1] + 2
-	mi, _ := m.Update(tea.MouseMsg{X: 4, Y: y, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress})
+	mi, _ := m.Update(tea.MouseClickMsg{X: 4, Y: y, Button: tea.MouseLeft})
 	m = asModel(t, mi)
 	if m.diagSel != 1 {
 		t.Fatalf("click must select the finding, sel=%d", m.diagSel)
@@ -499,7 +499,7 @@ func TestKikooBannerGeometry(t *testing.T) {
 	}
 	m.applyRows()
 
-	view := m.View()
+	view := m.View().Content
 	if !strings.Contains(view, "iAdvize") {
 		t.Fatalf("banner missing on a large terminal")
 	}
@@ -516,13 +516,13 @@ func TestKikooBannerGeometry(t *testing.T) {
 	// A click on the SECOND row: banner-less geometry says y=4; on screen it
 	// is bannerH lower. The normalized handler must select row 1.
 	y := 4 + m.bannerH()
-	mi, _ := m.Update(tea.MouseMsg{X: 5, Y: y, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress})
+	mi, _ := m.Update(tea.MouseClickMsg{X: 5, Y: y, Button: tea.MouseLeft})
 	m = asModel(t, mi)
 	if m.win.cursor != 1 {
 		t.Fatalf("banner shifted the click mapping: cursor=%d want 1", m.win.cursor)
 	}
 	// Clicks inside the banner are inert.
-	mi, _ = m.Update(tea.MouseMsg{X: 5, Y: 1, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress})
+	mi, _ = m.Update(tea.MouseClickMsg{X: 5, Y: 1, Button: tea.MouseLeft})
 	m = asModel(t, mi)
 	if m.win.cursor != 1 {
 		t.Fatal("banner clicks must be decoration-only")
@@ -531,7 +531,7 @@ func TestKikooBannerGeometry(t *testing.T) {
 	// Small terminal: banner disappears entirely.
 	m.height = 24
 	m.layout()
-	if m.bannerH() != 0 || strings.Contains(m.View(), "iAdvize 💚") {
+	if m.bannerH() != 0 || strings.Contains(m.View().Content, "iAdvize 💚") {
 		t.Fatal("banner must vanish on small terminals")
 	}
 }

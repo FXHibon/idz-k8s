@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/table"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/table"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/iadvize/idz-k8s/internal/helm"
 	"github.com/iadvize/idz-k8s/internal/kube"
@@ -59,7 +59,7 @@ func (m Model) openPalette() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) handlePickerKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handlePickerKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	// Enter selects the highlighted option.
 	if hit(msg, m.keys.Open) {
 		return m.pickerSelect()
@@ -67,7 +67,7 @@ func (m Model) handlePickerKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Namespace picker: Space marks/unmarks the highlighted namespace —
 	// Enter then scopes to ALL the marked ones (owner request 2026-07-31).
 	// Namespace names cannot contain spaces, so type-to-filter loses nothing.
-	if m.pickerKind == pickNamespace && msg.Type == tea.KeySpace {
+	if m.pickerKind == pickNamespace && msg.Code == tea.KeySpace {
 		if row, ok := m.pickerWin.Selected(); ok && len(row) > 0 {
 			name := row[0]
 			if name != allNamespacesLabel && !strings.HasPrefix(name, nsPatternPrefix) {
@@ -86,13 +86,13 @@ func (m Model) handlePickerKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Column chooser: Space toggles, ←/→ reorders; no type-to-filter (and no
 	// key may leak to global shortcuts while the chooser is open).
 	if m.pickerKind == pickColumns {
-		switch msg.Type {
+		switch msg.Code {
 		case tea.KeySpace:
 			m.toggleColItem(m.pickerWin.cursor)
 			return m, nil
 		case tea.KeyLeft, tea.KeyRight:
 			i, j := m.pickerWin.cursor, m.pickerWin.cursor-1
-			if msg.Type == tea.KeyRight {
+			if msg.Code == tea.KeyRight {
 				j = i + 1
 			}
 			if i >= 0 && i < len(m.colItems) && j >= 0 && j < len(m.colItems) &&
@@ -105,12 +105,13 @@ func (m Model) handlePickerKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case tea.KeyBackspace, tea.KeyDelete:
 			m.removeColItem(m.pickerWin.cursor)
 			return m, nil
-		case tea.KeyRunes:
+		}
+		if isTextKey(msg) {
 			return m, nil
 		}
 	}
 	// Arrow/page navigation on the windowed table.
-	switch msg.Type {
+	switch msg.Code {
 	case tea.KeyUp, tea.KeyDown, tea.KeyPgUp, tea.KeyPgDown, tea.KeyHome, tea.KeyEnd:
 		m.navigate(&m.pickerWin, msg)
 		return m, nil
@@ -121,9 +122,10 @@ func (m Model) handlePickerKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.applyPickerRows()
 		}
 		return m, nil
-	case tea.KeyRunes, tea.KeySpace:
+	}
+	if isTextKey(msg) {
 		// Type-to-filter: narrow the options as the user types (k9s-style ":").
-		m.pickerQuery += string(msg.Runes)
+		m.pickerQuery += msg.Text
 		m.applyPickerRows()
 		return m, nil
 	}

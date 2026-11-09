@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/charmbracelet/bubbles/key"
+	"charm.land/bubbles/v2/key"
 
 	"github.com/iadvize/idz-k8s/internal/ui/keys"
 )

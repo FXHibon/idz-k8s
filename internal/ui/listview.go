@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/table"
+	"charm.land/bubbles/v2/table"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/iadvize/idz-k8s/internal/kube"

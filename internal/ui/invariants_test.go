@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	xansi "github.com/charmbracelet/x/ansi"
 
 	"github.com/iadvize/idz-k8s/internal/config"
@@ -17,15 +17,15 @@ import (
 // screen after deleting a multi-byte character ('é', view names in French…).
 func TestTypingBackspaceDeletesRuneNotByte(t *testing.T) {
 	m := eventsModel(t)
-	m = send(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	m = send(t, m, tea.KeyPressMsg{Code: '/', Text: "/"})
 	m = typeRunes(t, m, "café")
-	m = send(t, m, tea.KeyMsg{Type: tea.KeyBackspace})
+	m = send(t, m, tea.KeyPressMsg{Code: tea.KeyBackspace})
 	if m.eventsQuery != "caf" {
 		t.Fatalf("backspace after 'café' should leave 'caf', got %q (bytes: %x)", m.eventsQuery, m.eventsQuery)
 	}
-	m = send(t, m, tea.KeyMsg{Type: tea.KeyBackspace})
-	m = send(t, m, tea.KeyMsg{Type: tea.KeyBackspace})
-	m = send(t, m, tea.KeyMsg{Type: tea.KeyBackspace})
+	m = send(t, m, tea.KeyPressMsg{Code: tea.KeyBackspace})
+	m = send(t, m, tea.KeyPressMsg{Code: tea.KeyBackspace})
+	m = send(t, m, tea.KeyPressMsg{Code: tea.KeyBackspace})
 	if m.eventsQuery != "" {
 		t.Fatalf("three more backspaces should empty the query, got %q", m.eventsQuery)
 	}
@@ -38,9 +38,9 @@ func TestTypingBackspaceDeletesRuneNotByte(t *testing.T) {
 	p.layout()
 	pi, _ := p.openPicker(pickType)
 	p = asModel(t, pi)
-	pi, _ = p.handlePickerKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'é'}})
+	pi, _ = p.handlePickerKey(tea.KeyPressMsg{Code: 'é', Text: "é"})
 	p = asModel(t, pi)
-	pi, _ = p.handlePickerKey(tea.KeyMsg{Type: tea.KeyBackspace})
+	pi, _ = p.handlePickerKey(tea.KeyPressMsg{Code: tea.KeyBackspace})
 	p = asModel(t, pi)
 	if p.pickerQuery != "" {
 		t.Fatalf("picker backspace should delete the whole rune, got %q (bytes: %x)", p.pickerQuery, p.pickerQuery)
@@ -58,7 +58,7 @@ func TestListFilterEscCancels(t *testing.T) {
 	m.layout()
 
 	// '/' enters filtering, type a query, Esc cancels it entirely.
-	m = send(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	m = send(t, m, tea.KeyPressMsg{Code: '/', Text: "/"})
 	if !m.filtering {
 		t.Fatal("'/' should enter list filtering mode")
 	}
@@ -66,15 +66,15 @@ func TestListFilterEscCancels(t *testing.T) {
 	if m.filter.Value() != "web" {
 		t.Fatalf("filter value=%q want web", m.filter.Value())
 	}
-	m = send(t, m, tea.KeyMsg{Type: tea.KeyEscape})
+	m = send(t, m, tea.KeyPressMsg{Code: tea.KeyEscape})
 	if m.filtering || m.filter.Value() != "" {
 		t.Fatalf("Esc must cancel and clear the filter, got filtering=%v value=%q", m.filtering, m.filter.Value())
 	}
 
 	// Enter still commits (kept as a chip).
-	m = send(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	m = send(t, m, tea.KeyPressMsg{Code: '/', Text: "/"})
 	m = typeRunes(t, m, "api")
-	m = send(t, m, tea.KeyMsg{Type: tea.KeyEnter})
+	m = send(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
 	if m.filtering || m.filter.Value() != "api" {
 		t.Fatalf("Enter must commit the filter, got filtering=%v value=%q", m.filtering, m.filter.Value())
 	}
@@ -121,11 +121,11 @@ func TestSecretRevealUsesKeymapBinding(t *testing.T) {
 	m.screen = screenDetail
 
 	// The binding toggles reveal on a Secret detail.
-	m = send(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
+	m = send(t, m, tea.KeyPressMsg{Code: 'x', Text: "x"})
 	if !m.revealSecret {
 		t.Fatal("'x' should reveal secret values on a Secret detail")
 	}
-	m = send(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
+	m = send(t, m, tea.KeyPressMsg{Code: 'x', Text: "x"})
 	if m.revealSecret {
 		t.Fatal("'x' again should mask secret values")
 	}
@@ -146,7 +146,7 @@ func TestSecretRevealUsesKeymapBinding(t *testing.T) {
 	pods := model.ResourceType{Version: "v1", Resource: "pods", Kind: "Pod", Namespaced: true}
 	m.curType = pods
 	m.revealSecret = false
-	m = send(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
+	m = send(t, m, tea.KeyPressMsg{Code: 'x', Text: "x"})
 	if m.revealSecret {
 		t.Fatal("'x' must not toggle reveal outside Secret details")
 	}

@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -59,7 +59,7 @@ func adminModel(t *testing.T) Model {
 
 func pressRune(t *testing.T, m Model, r rune) Model {
 	t.Helper()
-	mi, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+	mi, _ := m.Update(tea.KeyPressMsg{Code: r, Text: string(r)})
 	return asModel(t, mi)
 }
 
@@ -124,19 +124,19 @@ func TestDeleteGoesThroughConfirmation(t *testing.T) {
 	if !m.confirming || !strings.Contains(m.confirmTitle, "DELETE Deployment/back") {
 		t.Fatalf("delete must arm the confirmation modal (confirming=%v title=%q)", m.confirming, m.confirmTitle)
 	}
-	if !strings.Contains(m.View(), "destructive action") {
+	if !strings.Contains(m.View().Content, "destructive action") {
 		t.Fatal("the confirmation modal must be visible and flag the destruction")
 	}
 
 	// 'q' while confirming must neither quit nor mutate (typing-mode rule).
-	mi, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	mi, cmd := m.Update(tea.KeyPressMsg{Code: 'q', Text: "q"})
 	m = asModel(t, mi)
 	if cmd != nil || !m.confirming {
 		t.Fatal("keys other than Enter/Esc must be swallowed by the modal")
 	}
 
 	// Esc cancels: no command, modal gone.
-	mi, cmd = m.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	mi, cmd = m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	m = asModel(t, mi)
 	if cmd != nil || m.confirming {
 		t.Fatal("Esc must cancel without running anything")
@@ -144,7 +144,7 @@ func TestDeleteGoesThroughConfirmation(t *testing.T) {
 
 	// Enter runs the armed command; the fake records the delete.
 	m = selectAction(t, m, "delete")
-	mi, cmd = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, cmd = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	if m.confirming || cmd == nil {
 		t.Fatal("Enter must disarm the modal and run the mutation")
@@ -172,10 +172,10 @@ func TestScalePromptAppliesReplicas(t *testing.T) {
 		t.Fatalf("prompt must be pre-filled with the current replicas, got %q", m.promptInput)
 	}
 	// Backspace the prefill, type 5, Enter.
-	mi, _ := m.Update(tea.KeyMsg{Type: tea.KeyBackspace})
+	mi, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
 	m = asModel(t, mi)
 	m = pressRune(t, m, '5')
-	mi, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	if m.promptKind != promptNone || cmd == nil {
 		t.Fatal("Enter must commit the prompt and run the scale")
@@ -196,11 +196,11 @@ func TestScalePromptRejectsGarbage(t *testing.T) {
 	m := adminModel(t)
 	m = selectAction(t, m, "scale")
 	for m.promptInput != "" { // clear the prefill
-		mi, _ := m.Update(tea.KeyMsg{Type: tea.KeyBackspace})
+		mi, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
 		m = asModel(t, mi)
 	}
 	m = pressRune(t, m, 'x')
-	mi, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	if cmd != nil || !strings.Contains(m.errMsg, "replicas") {
 		t.Fatalf("garbage replicas must error without mutating (err=%q)", m.errMsg)
@@ -286,7 +286,7 @@ func TestBulkDeleteOnMarkedPods(t *testing.T) {
 		!strings.Contains(m.confirmTitle, "web-1") || !strings.Contains(m.confirmTitle, "web-2") {
 		t.Fatalf("bulk delete must confirm with count and names, got %q", m.confirmTitle)
 	}
-	mi, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	if cmd == nil {
 		t.Fatal("Enter must run the bulk mutation")
@@ -374,7 +374,7 @@ func cronDrilledModel(t *testing.T, jobs ...model.ResourceObject) Model {
 	m.objects = []model.ResourceObject{{Type: cronType, Namespace: "demo", Name: "nightly", Raw: cronRaw}}
 	m.applyRows()
 	// Drill into the Jobs level.
-	mi, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	m.objects = jobs
 	m.applyRows()
@@ -402,7 +402,7 @@ func TestParentActionsInDrilledList(t *testing.T) {
 	if !m.confirming || !strings.Contains(m.confirmTitle, "CronJob/nightly") {
 		t.Fatalf("trigger-parent must confirm on the parent, got %q", m.confirmTitle)
 	}
-	mi, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	if cmd == nil {
 		t.Fatal("Enter must run the trigger")
@@ -591,7 +591,7 @@ func TestBulkScaleMarkedDeployments(t *testing.T) {
 		t.Fatalf("mixed replica counts (3 and 1) must not be pre-filled, got %q", m.promptInput)
 	}
 	m = pressRune(t, m, '4')
-	mi, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	if cmd != nil {
 		t.Fatal("the prompt alone must not mutate — the confirmation modal comes first")
@@ -600,7 +600,7 @@ func TestBulkScaleMarkedDeployments(t *testing.T) {
 		!strings.Contains(m.confirmTitle, "back") || !strings.Contains(m.confirmTitle, "front") {
 		t.Fatalf("bulk scale must confirm with count, target replicas and names, got %q", m.confirmTitle)
 	}
-	mi, cmd = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, cmd = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	if cmd == nil {
 		t.Fatal("Enter on the modal must run the bulk scale")

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/iadvize/idz-k8s/internal/config"
 	"github.com/iadvize/idz-k8s/internal/kube"
@@ -39,12 +39,12 @@ func TestSnapshotRender(t *testing.T) {
 	m.layout()
 	m.applyRows()
 
-	if err := os.WriteFile(out+"/list.txt", []byte(strip(m.View())), 0o644); err != nil {
+	if err := os.WriteFile(out+"/list.txt", []byte(strip(m.View().Content)), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	m.openDetail()
-	if err := os.WriteFile(out+"/detail.txt", []byte(strip(m.View())), 0o644); err != nil {
+	if err := os.WriteFile(out+"/detail.txt", []byte(strip(m.View().Content)), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -59,10 +59,10 @@ func TestSnapshotRender(t *testing.T) {
 	mi, _ := m.openPicker(pickType)
 	pm := mi.(Model)
 	for _, r := range "dep" {
-		mi, _ = pm.handlePickerKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		mi, _ = pm.handlePickerKey(tea.KeyPressMsg{Code: r, Text: string(r)})
 		pm = mi.(Model)
 	}
-	if err := os.WriteFile(out+"/picker.txt", []byte(strip(pm.View())), 0o644); err != nil {
+	if err := os.WriteFile(out+"/picker.txt", []byte(strip(pm.View().Content)), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -74,7 +74,7 @@ func TestSnapshotRender(t *testing.T) {
 	nm.applyPickerRows()
 	nm.screen = screenPicker
 	nm.layout()
-	if err := os.WriteFile(out+"/ns_picker.txt", []byte(strip(nm.View())), 0o644); err != nil {
+	if err := os.WriteFile(out+"/ns_picker.txt", []byte(strip(nm.View().Content)), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -88,7 +88,7 @@ func TestSnapshotRender(t *testing.T) {
 		{Namespace: "demo", Name: "web-1", Pods: 1, CPU: 0.45, Mem: 2e8, HasCPU: true, HasMem: true},
 	}
 	tv.applyUsageFilter()
-	if err := os.WriteFile(out+"/top.txt", []byte(strip(tv.View())), 0o644); err != nil {
+	if err := os.WriteFile(out+"/top.txt", []byte(strip(tv.View().Content)), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -110,7 +110,7 @@ func TestSnapshotRender(t *testing.T) {
 	dv.screen = screenDetail
 	dv.layout()
 	dv.renderDetail()
-	if err := os.WriteFile(out+"/detail_usage.txt", []byte(strip(dv.View())), 0o644); err != nil {
+	if err := os.WriteFile(out+"/detail_usage.txt", []byte(strip(dv.View().Content)), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -124,7 +124,7 @@ func TestSnapshotRender(t *testing.T) {
 		{Namespace: "demo", Pod: "batch-9", Container: "job", Restarts: 2, Reason: "Error (exit 1, x2)", Level: model.HealthWarning},
 		{Namespace: "demo", Pod: "old-pod", Reason: "Evicted: node low on memory", Level: model.HealthError},
 	})
-	if err := os.WriteFile(out+"/diag.txt", []byte(strip(fv.View())), 0o644); err != nil {
+	if err := os.WriteFile(out+"/diag.txt", []byte(strip(fv.View().Content)), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -146,7 +146,7 @@ func TestSnapshotRender(t *testing.T) {
 				{Namespace: "demo", Name: "web-1", Status: model.HealthOk, CPUReq: 0.5, MemReq: 512 * 1024 * 1024},
 			}},
 	})
-	if err := os.WriteFile(out+"/topology.txt", []byte(strip(pv.View())), 0o644); err != nil {
+	if err := os.WriteFile(out+"/topology.txt", []byte(strip(pv.View().Content)), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -163,7 +163,7 @@ func TestSnapshotRender(t *testing.T) {
 		{Time: now.Add(-35 * time.Minute), Type: "Warning", Reason: "FailedScheduling", Message: "0/3 nodes are available: insufficient cpu", ObjKind: "Pod", ObjName: "batch-9"},
 	}
 	ev.renderEvents()
-	if err := os.WriteFile(out+"/events.txt", []byte(strip(ev.View())), 0o644); err != nil {
+	if err := os.WriteFile(out+"/events.txt", []byte(strip(ev.View().Content)), 0o644); err != nil {
 		t.Fatal(err)
 	}
 }
