@@ -25,6 +25,8 @@ func (m Model) handleTopKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case hit(msg, m.keys.Filter):
 		m.usageTyping = true
+		m.openRecall(recallUsage, &m.usageFilterQ)
+		m.applyUsageFilter()
 		return m, nil
 	case hit(msg, m.keys.Sort):
 		m.usageSortCol++
@@ -47,7 +49,11 @@ func (m Model) handleListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case hit(msg, m.keys.Filter):
 		m.filtering = true
+		v := m.filter.Value()
+		m.openRecall(recallList, &v)
+		m.filter.SetValue(v)
 		m.filter.Focus()
+		m.applyRows()
 		return m, nil
 	case hit(msg, m.keys.Open):
 		return m.openListSelection()

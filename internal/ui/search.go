@@ -16,7 +16,8 @@ import (
 func (m Model) handleSearchKey(msg tea.KeyMsg) (tea.Model, tea.Cmd, bool) {
 	switch {
 	case hit(msg, m.keys.Filter):
-		m.searchTyping, m.searchInput = true, m.searchQuery
+		m.searchTyping, m.searchInput = true, ""
+		m.commitRecall(recallSearch, m.searchQuery)
 		return m, nil, true
 	case hit(msg, m.keys.SearchNext) && len(m.searchHits) > 0:
 		m.searchStep(1)

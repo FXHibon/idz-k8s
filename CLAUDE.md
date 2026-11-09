@@ -253,6 +253,12 @@ before matching (styled cells would otherwise swallow a match). The events
 timeline is the deliberate exception: it matches object identity only, so
 typing "back" finds pods named *back* instead of every BackOff event.
 
+Reopening '/' starts with an EMPTY field and shows the last committed
+query of that field as a faint ghost; Tab/→ accepts it (`recall.go`, owner
+request 2026-11-09). Never pre-fill the field with the previous term — it
+forced erasing before typing a new one. Any new '/' input gets a
+`recallSlot` and passes its ghost to `inputModal`.
+
 ## Datadog logs link ('D') — owner request 2026-09-04 (FR-039)
 
 `D` (list + containers view) and `datadog`/`datadog-parent` in the 'a'

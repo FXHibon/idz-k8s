@@ -29,6 +29,7 @@ type KeyMap struct {
 	Datadog     key.Binding // open the selection's logs in Datadog (browser)
 	SearchNext  key.Binding
 	SearchPrev  key.Binding
+	Recall      key.Binding // in a '/' field: accept the faint last query
 	Mark        key.Binding
 	Sort        key.Binding
 	SortDir     key.Binding
@@ -95,6 +96,7 @@ func Default() KeyMap {
 		Separator:   key.NewBinding(key.WithKeys("M"), key.WithHelp("M", "insert separator")),
 		ScrollLeft:  key.NewBinding(key.WithKeys("left"), key.WithHelp("←", "scroll left")),
 		ScrollRight: key.NewBinding(key.WithKeys("right"), key.WithHelp("→", "scroll right")),
+		Recall:      key.NewBinding(key.WithKeys("tab", "right"), key.WithHelp("tab/→", "recall last query (in '/')")),
 		Mouse:       key.NewBinding(key.WithKeys("m"), key.WithHelp("m", "mouse on/off (copy text)")),
 		Kind:        key.NewBinding(key.WithKeys("k"), key.WithHelp("k", "kind")),
 		Namespace:   key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "namespace")),
@@ -115,7 +117,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.PageUp, k.PageDown, k.Home, k.End},
-		{k.Open, k.Back, k.Filter, k.Jump, k.Mark, k.SearchNext, k.SearchPrev},
+		{k.Open, k.Back, k.Filter, k.Jump, k.Mark, k.SearchNext, k.SearchPrev, k.Recall},
 		{k.Logs, k.Datadog, k.Yaml, k.Describe, k.Owner, k.Palette, k.Actions, k.Edit},
 		{k.Sort, k.SortDir, k.Columns, k.Views, k.ResetView},
 		{k.Kind, k.Namespace, k.Context, k.Values, k.Reveal, k.Pause, k.WarnOnly},

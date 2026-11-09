@@ -161,6 +161,8 @@ func (m Model) handleHelmKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.openHelmDetail(true) // values only
 	case hit(msg, m.keys.Filter):
 		m.helmFiltering = true
+		m.openRecall(recallHelm, &m.helmQuery)
+		m.renderHelm()
 		return m, nil
 	case hit(msg, m.keys.Actions):
 		return m.openActions()
