@@ -9,7 +9,7 @@ import (
 	"os/exec"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/spf13/cobra"
 
 	"github.com/iadvize/idz-k8s/internal/config"
@@ -126,16 +126,13 @@ func main() {
 				ui.WithTheme(theme.ForName(cfg.Theme)),
 				ui.WithKikoo(kikoo),
 			)
-			opts := []tea.ProgramOption{tea.WithAltScreen()}
-			if !noMouse {
-				opts = append(opts, tea.WithMouseCellMotion())
-			}
 			if noColor {
-				// Same path as the NO_COLOR env convention — lipgloss reads it
-				// on first render; symbols carry meaning without color (FR-020).
+				// Same path as the NO_COLOR env convention — Bubble Tea reads
+				// it when the program starts and downsamples the output;
+				// symbols carry meaning without color (FR-020).
 				_ = os.Setenv("NO_COLOR", "1")
 			}
-			p := tea.NewProgram(m, opts...)
+			p := tea.NewProgram(m)
 			_, err = p.Run()
 			return err
 		},

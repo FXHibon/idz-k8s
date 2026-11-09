@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	xansi "github.com/charmbracelet/x/ansi"
 
 	"github.com/iadvize/idz-k8s/internal/config"
@@ -80,7 +80,7 @@ func TestRestartsColumnNamesTheReason(t *testing.T) {
 // container with its previous termination.
 func TestContainersViewShowsLastTermination(t *testing.T) {
 	m := oomPodModel(t)
-	mi, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	if m.screen != screenContainers {
 		t.Fatalf("Enter must open the containers view, screen=%d", m.screen)

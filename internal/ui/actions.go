@@ -9,13 +9,13 @@ import (
 	"strings"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/iadvize/idz-k8s/internal/kube"
 	"github.com/iadvize/idz-k8s/internal/model"
 )
 
-func (m Model) handleTopKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleTopKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case hit(msg, m.keys.Open):
 		if c := m.usageWin.cursor; c >= 0 && c < len(m.usageRows) {
@@ -45,7 +45,7 @@ func (m Model) handleTopKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) handleListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleListKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case hit(msg, m.keys.Filter):
 		m.filtering = true
@@ -160,7 +160,7 @@ func (m Model) openListSelection() (tea.Model, tea.Cmd) {
 }
 
 // navigate applies standard movement keys to a windowed table.
-func (m *Model) navigate(w *winTable, msg tea.KeyMsg) {
+func (m *Model) navigate(w *winTable, msg tea.KeyPressMsg) {
 	switch {
 	case hit(msg, m.keys.Up):
 		w.Move(-1)
@@ -177,7 +177,7 @@ func (m *Model) navigate(w *winTable, msg tea.KeyMsg) {
 	}
 }
 
-func (m Model) handleScrollKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleScrollKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	if m.screen == screenDetail {
 		// Toggle secret reveal on the detail of a Secret (keys.Reveal — 'x'

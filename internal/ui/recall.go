@@ -8,7 +8,7 @@ package ui
 import (
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 type recallSlot int
@@ -48,7 +48,7 @@ func (m Model) ghostFor(slot recallSlot, typed string) string {
 
 // acceptRecall completes the field with its ghost on Tab/→. It reports
 // false when there is nothing to accept so → keeps its usual meaning.
-func (m *Model) acceptRecall(slot recallSlot, msg tea.KeyMsg, q *string) bool {
+func (m *Model) acceptRecall(slot recallSlot, msg tea.KeyPressMsg, q *string) bool {
 	if !hit(msg, m.keys.Recall) {
 		return false
 	}

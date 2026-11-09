@@ -11,8 +11,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/iadvize/idz-k8s/internal/model"
 )
@@ -27,7 +27,7 @@ type findingsNav struct {
 }
 
 // handleFindingsKey handles the keys shared by the diag and posture views.
-func (m *Model) handleFindingsKey(msg tea.KeyMsg, f findingsNav) (tea.Model, tea.Cmd) {
+func (m *Model) handleFindingsKey(msg tea.KeyPressMsg, f findingsNav) (tea.Model, tea.Cmd) {
 	switch {
 	case hit(msg, m.keys.Open):
 		if *f.sel >= 0 && *f.sel < len(f.refs) {
@@ -40,7 +40,7 @@ func (m *Model) handleFindingsKey(msg tea.KeyMsg, f findingsNav) (tea.Model, tea
 		f.rerender()
 		return *m, nil
 	}
-	switch msg.Type {
+	switch msg.Code {
 	case tea.KeyUp:
 		if *f.sel > 0 {
 			*f.sel--

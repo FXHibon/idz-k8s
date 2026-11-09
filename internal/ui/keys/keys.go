@@ -4,7 +4,7 @@
 // edit — and always end in an explicit confirmation before anything runs.
 package keys
 
-import "github.com/charmbracelet/bubbles/key"
+import "charm.land/bubbles/v2/key"
 
 // KeyMap holds every binding. Help text is attached so the overlay stays in
 // sync with behavior.
@@ -77,7 +77,7 @@ func Default() KeyMap {
 		Datadog:    key.NewBinding(key.WithKeys("D"), key.WithHelp("D", "logs in Datadog")),
 		SearchNext: key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "next match")),
 		SearchPrev: key.NewBinding(key.WithKeys("N"), key.WithHelp("N", "previous match")),
-		Mark:       key.NewBinding(key.WithKeys(" "), key.WithHelp("space", "mark")),
+		Mark:       key.NewBinding(key.WithKeys("space"), key.WithHelp("space", "mark")),
 		Sort:       key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "sort column")),
 		SortDir:    key.NewBinding(key.WithKeys("S"), key.WithHelp("S", "sort asc/desc")),
 		Columns:    key.NewBinding(key.WithKeys("C"), key.WithHelp("C", "choose columns")),
@@ -85,7 +85,7 @@ func Default() KeyMap {
 		ResetView:  key.NewBinding(key.WithKeys("R"), key.WithHelp("R", "reset view")),
 		Values:     key.NewBinding(key.WithKeys("v"), key.WithHelp("v", "values")),
 		Reveal:     key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "reveal/mask secret values")),
-		Pause:      key.NewBinding(key.WithKeys(" "), key.WithHelp("space", "pause/resume")),
+		Pause:      key.NewBinding(key.WithKeys("space"), key.WithHelp("space", "pause/resume")),
 		WarnOnly:   key.NewBinding(key.WithKeys("w"), key.WithHelp("w", "warnings only")),
 		Scale:      key.NewBinding(key.WithKeys("t"), key.WithHelp("t", "time window")),
 		// Logs view only (per-screen keymap): 'w' wraps there, matching k9s.

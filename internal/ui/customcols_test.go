@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/iadvize/idz-k8s/internal/config"
 	"github.com/iadvize/idz-k8s/internal/model"
@@ -89,10 +89,10 @@ func TestChooserAddCustomFieldFlow(t *testing.T) {
 
 	// Typing must be captured (no 'q' quit), Enter adds the column.
 	for _, r := range ".status.podIP" {
-		mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		mi, _ = m.handleKey(tea.KeyPressMsg{Code: r, Text: string(r)})
 		m = asModel(t, mi)
 	}
-	mi, cmd := m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, cmd := m.handleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	if cmd != nil {
 		t.Fatal("adding a column must not quit or fetch")
@@ -108,7 +108,7 @@ func TestChooserAddCustomFieldFlow(t *testing.T) {
 	}
 
 	// Apply: the spec is persisted and the live column renders the value.
-	mi, _ = m.handlePickerKey(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, _ = m.handlePickerKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	specs := m.cfg.ViewPrefs["v1/pods"].Columns
 	has := false
@@ -151,7 +151,7 @@ func TestChooserRemovesCustomField(t *testing.T) {
 		t.Fatalf("custom entry missing from the chooser: %+v", m.colItems)
 	}
 	m.pickerWin.cursor = idx
-	mi, _ = m.handlePickerKey(tea.KeyMsg{Type: tea.KeyBackspace})
+	mi, _ = m.handlePickerKey(tea.KeyPressMsg{Code: tea.KeyBackspace})
 	m = asModel(t, mi)
 	for _, it := range m.colItems {
 		if it.title == "field:.status.podIp_typo" {
@@ -161,13 +161,13 @@ func TestChooserRemovesCustomField(t *testing.T) {
 	// Built-in columns refuse deletion.
 	m.pickerWin.cursor = 0 // NAME
 	before := len(m.colItems)
-	mi, _ = m.handlePickerKey(tea.KeyMsg{Type: tea.KeyBackspace})
+	mi, _ = m.handlePickerKey(tea.KeyPressMsg{Code: tea.KeyBackspace})
 	m = asModel(t, mi)
 	if len(m.colItems) != before {
 		t.Fatal("built-in column must not be removable")
 	}
 	// Apply: the pref no longer contains the removed field.
-	mi, _ = m.handlePickerKey(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, _ = m.handlePickerKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	for _, c := range m.cfg.ViewPrefs["v1/pods"].Columns {
 		if c == "field:.status.podIp_typo" {
@@ -387,9 +387,9 @@ func TestChooserApplyRecordsHidden(t *testing.T) {
 	m = asModel(t, mi)
 	// Hide NAMESPACE.
 	m.pickerWin.cursor = 0
-	mi, _ = m.handlePickerKey(tea.KeyMsg{Type: tea.KeySpace})
+	mi, _ = m.handlePickerKey(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 	m = asModel(t, mi)
-	mi, _ = m.handlePickerKey(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, _ = m.handlePickerKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	pref := m.cfg.ViewPrefs["v1/pods"]
 	found := false

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	xansi "github.com/charmbracelet/x/ansi"
 
 	"github.com/iadvize/idz-k8s/internal/config"
@@ -30,7 +30,7 @@ func eventsModel(t *testing.T) Model {
 	return m
 }
 
-func send(t *testing.T, m Model, msg tea.KeyMsg) Model {
+func send(t *testing.T, m Model, msg tea.KeyPressMsg) Model {
 	t.Helper()
 	mi, _ := m.Update(msg)
 	switch v := mi.(type) {
@@ -47,7 +47,7 @@ func send(t *testing.T, m Model, msg tea.KeyMsg) Model {
 func typeRunes(t *testing.T, m Model, s string) Model {
 	t.Helper()
 	for _, r := range s {
-		m = send(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		m = send(t, m, tea.KeyPressMsg{Code: r, Text: string(r)})
 	}
 	return m
 }
@@ -56,7 +56,7 @@ func TestEventsFilterTypingSwallowsGlobalKeys(t *testing.T) {
 	m := eventsModel(t)
 	// Enter typing mode with '/' then type "quick" — 'q' must NOT quit,
 	// 'n' must NOT open the namespace picker.
-	m = send(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	m = send(t, m, tea.KeyPressMsg{Code: '/', Text: "/"})
 	if !m.eventsFiltering {
 		t.Fatal("'/' should enter filter typing mode")
 	}
@@ -68,13 +68,13 @@ func TestEventsFilterTypingSwallowsGlobalKeys(t *testing.T) {
 		t.Fatalf("query=%q want qn", m.eventsQuery)
 	}
 	// Enter commits and exits typing mode, keeping the query.
-	m = send(t, m, tea.KeyMsg{Type: tea.KeyEnter})
+	m = send(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
 	if m.eventsFiltering || m.eventsQuery != "qn" {
 		t.Fatalf("Enter must save the filter, got filtering=%v query=%q", m.eventsFiltering, m.eventsQuery)
 	}
 	// Esc while typing cancels.
-	m = send(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
-	m = send(t, m, tea.KeyMsg{Type: tea.KeyEscape})
+	m = send(t, m, tea.KeyPressMsg{Code: '/', Text: "/"})
+	m = send(t, m, tea.KeyPressMsg{Code: tea.KeyEscape})
 	if m.eventsQuery != "" {
 		t.Fatalf("Esc must cancel the filter, got %q", m.eventsQuery)
 	}
@@ -83,12 +83,12 @@ func TestEventsFilterTypingSwallowsGlobalKeys(t *testing.T) {
 func TestEventsNamespaceReachableAfterCommit(t *testing.T) {
 	m := eventsModel(t)
 	// Outside typing mode, 'n' opens the namespace picker and returns to events.
-	m = send(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+	m = send(t, m, tea.KeyPressMsg{Code: 'n', Text: "n"})
 	if m.screen != screenPicker || m.pickerReturn != screenEvents {
 		t.Fatalf("'n' should open picker returning to events, screen=%d return=%d", m.screen, m.pickerReturn)
 	}
 	// Esc goes back to the timeline, not the list.
-	m = send(t, m, tea.KeyMsg{Type: tea.KeyEscape})
+	m = send(t, m, tea.KeyPressMsg{Code: tea.KeyEscape})
 	if m.screen != screenEvents {
 		t.Fatalf("Esc from picker must return to events, got %d", m.screen)
 	}
@@ -96,7 +96,7 @@ func TestEventsNamespaceReachableAfterCommit(t *testing.T) {
 
 func TestEventsKindPickerFilters(t *testing.T) {
 	m := eventsModel(t)
-	m = send(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	m = send(t, m, tea.KeyPressMsg{Code: 'k', Text: "k"})
 	if m.screen != screenPicker || m.pickerKind != pickEventKind {
 		t.Fatalf("'k' should open the kind picker, screen=%d kind=%d", m.screen, m.pickerKind)
 	}
@@ -109,7 +109,7 @@ func TestEventsKindPickerFilters(t *testing.T) {
 	}
 	// Select "Deployment" via type-to-filter + Enter.
 	m = typeRunes(t, m, "deploy")
-	m = send(t, m, tea.KeyMsg{Type: tea.KeyEnter})
+	m = send(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
 	if m.screen != screenEvents || m.eventsKind != "Deployment" {
 		t.Fatalf("selecting kind should filter timeline, screen=%d kind=%q", m.screen, m.eventsKind)
 	}
@@ -160,7 +160,7 @@ func TestEventsSelectionWalksAllEvents(t *testing.T) {
 
 	// Walk down past the initial window of 8: selection and window must follow.
 	for i := 0; i < 10; i++ {
-		m = send(t, m, tea.KeyMsg{Type: tea.KeyDown})
+		m = send(t, m, tea.KeyPressMsg{Code: tea.KeyDown})
 	}
 	if m.recentSel != 10 {
 		t.Fatalf("selection should reach index 10, got %d", m.recentSel)
@@ -177,7 +177,7 @@ func TestEventsSelectionWalksAllEvents(t *testing.T) {
 	}
 	// Walk back up beyond the window start.
 	for i := 0; i < 10; i++ {
-		m = send(t, m, tea.KeyMsg{Type: tea.KeyUp})
+		m = send(t, m, tea.KeyPressMsg{Code: tea.KeyUp})
 	}
 	if m.recentSel != 0 || m.recentWin != 0 {
 		t.Fatalf("selection/window should return to top, got sel=%d win=%d", m.recentSel, m.recentWin)
@@ -243,7 +243,7 @@ func TestEventsTimelineScale(t *testing.T) {
 	}
 
 	// 't' → 5m: only the fresh event survives, and the axis rescales to it.
-	m = send(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'t'}})
+	m = send(t, m, tea.KeyPressMsg{Code: 't', Text: "t"})
 	if m.eventsWindow != 5*time.Minute {
 		t.Fatalf("first 't' must select 5m, got %v", m.eventsWindow)
 	}
@@ -256,18 +256,18 @@ func TestEventsTimelineScale(t *testing.T) {
 	}
 
 	// 't' again → 15m keeps the 1-minute event, still not the 30-minute one.
-	m = send(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'t'}})
+	m = send(t, m, tea.KeyPressMsg{Code: 't', Text: "t"})
 	if m.eventsWindow != 15*time.Minute || len(m.eventsShown) != 1 {
 		t.Fatalf("15m window: %v shown=%d", m.eventsWindow, len(m.eventsShown))
 	}
 	// → 1h picks up the half-hour one.
-	m = send(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'t'}})
+	m = send(t, m, tea.KeyPressMsg{Code: 't', Text: "t"})
 	if m.eventsWindow != time.Hour || len(m.eventsShown) != 2 {
 		t.Fatalf("1h window: %v shown=%d", m.eventsWindow, len(m.eventsShown))
 	}
 	// Cycling all the way round comes back to "all".
 	for range 3 {
-		m = send(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'t'}})
+		m = send(t, m, tea.KeyPressMsg{Code: 't', Text: "t"})
 	}
 	if m.eventsWindow != 0 || len(m.eventsShown) != 3 {
 		t.Fatalf("the cycle must return to all: %v shown=%d", m.eventsWindow, len(m.eventsShown))
@@ -276,7 +276,7 @@ func TestEventsTimelineScale(t *testing.T) {
 	// An empty window explains how to widen it instead of just "no events".
 	m.eventRows = []model.Event{{Time: now.Add(-2 * time.Hour), Type: "Normal", Reason: "Pulled",
 		ObjKind: "Pod", ObjName: "old"}}
-	m = send(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'t'}}) // 5m
+	m = send(t, m, tea.KeyPressMsg{Code: 't', Text: "t"}) // 5m
 	if got := xansi.Strip(m.events.View()); !strings.Contains(got, "'t' widens the scale") {
 		t.Fatalf("an empty scale must say how to widen it:\n%s", got)
 	}
@@ -331,7 +331,7 @@ func TestEventsScaleShowsCounts(t *testing.T) {
 		t.Fatalf("the header must carry the counts:\n%s", got)
 	}
 	// 't' → 5m: both numbers move.
-	m = send(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'t'}})
+	m = send(t, m, tea.KeyPressMsg{Code: 't', Text: "t"})
 	if got := xansi.Strip(m.events.View()); !strings.Contains(got, "2 events · 2 objects") {
 		t.Fatalf("the counts must follow the scale:\n%s", got)
 	}
@@ -401,7 +401,7 @@ func TestEventsShowLastTermination(t *testing.T) {
 		t.Fatalf("a clean exit must not be flagged as a warning:\n%s", view)
 	}
 	// Moving the selection shows the other pod's reason.
-	m = send(t, m, tea.KeyMsg{Type: tea.KeyDown})
+	m = send(t, m, tea.KeyPressMsg{Code: tea.KeyDown})
 	if got := xansi.Strip(m.events.View()); !strings.Contains(got, "last termination of this pod: Completed (exit 0)") {
 		t.Fatalf("the selection's own reason must show:\n%s", got)
 	}

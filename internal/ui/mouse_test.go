@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/charmbracelet/bubbles/table"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/table"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/iadvize/idz-k8s/internal/config"
 	"github.com/iadvize/idz-k8s/internal/kube"
@@ -64,7 +64,7 @@ func listModelForMouse(t *testing.T, n int) Model {
 }
 
 func click(x, y int) tea.MouseMsg {
-	return tea.MouseMsg{X: x, Y: y, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress}
+	return tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft}
 }
 
 func TestMouseClickSelectsRow(t *testing.T) {
@@ -90,9 +90,9 @@ func TestMouseDoubleClickDrillsDown(t *testing.T) {
 	if m.screen != screenContainers {
 		t.Fatalf("double-click on a pod should open its containers, screen=%d", m.screen)
 	}
-	mi, _ = m.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	mi, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	m = asModel(t, mi)
-	mi, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	mi, _ = m.Update(tea.KeyPressMsg{Code: 'y', Text: "y"})
 	m = asModel(t, mi)
 	if m.screen != screenDetail {
 		t.Fatalf("'y' must still open the YAML detail, screen=%d", m.screen)
@@ -101,7 +101,7 @@ func TestMouseDoubleClickDrillsDown(t *testing.T) {
 
 func TestMouseWheelMovesSelection(t *testing.T) {
 	m := listModelForMouse(t, 30)
-	wheel := tea.MouseMsg{Button: tea.MouseButtonWheelDown, Action: tea.MouseActionPress}
+	wheel := tea.MouseWheelMsg{Button: tea.MouseWheelDown}
 	mi, _ := m.Update(wheel)
 	m = asModel(t, mi)
 	if m.win.cursor != 3 {
@@ -117,7 +117,7 @@ func TestEventsClickSelectsRecent(t *testing.T) {
 	}
 	// Click the 2nd detail row: viewport starts at y=2, content line =
 	// YOffset + y - 2 must equal recentBaseLine+1.
-	y := m.recentBaseLine + 1 + 2 - m.events.YOffset
+	y := m.recentBaseLine + 1 + 2 - m.events.YOffset()
 	mi, _ := m.Update(click(4, y))
 	m = asModel(t, mi)
 	if m.recentSel != 1 {
@@ -129,7 +129,7 @@ func TestEventsClickSelectsRecent(t *testing.T) {
 func TestSpaceMarksAndScopesEvents(t *testing.T) {
 	m := listModelForMouse(t, 4)
 	// Space marks the row under the cursor; the row gains the ● marker.
-	mi, _ := m.Update(tea.KeyMsg{Type: tea.KeySpace})
+	mi, _ := m.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 	m = asModel(t, mi)
 	if len(m.marked) != 1 {
 		t.Fatalf("space should mark 1 resource, got %d", len(m.marked))
@@ -159,9 +159,9 @@ func TestSortCycleAndHeaderClick(t *testing.T) {
 		t.Fatalf("precondition: unsorted first row should be pod-c, got %q", row[2])
 	}
 	// 's' cycles to NAMESPACE sort, then to NAME.
-	mi, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	mi, _ := m.Update(tea.KeyPressMsg{Code: 's', Text: "s"})
 	m = asModel(t, mi)
-	mi, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	mi, _ = m.Update(tea.KeyPressMsg{Code: 's', Text: "s"})
 	m = asModel(t, mi)
 	if m.sortCol != 2 || !m.sortAsc {
 		t.Fatalf("sort state: col=%d asc=%v", m.sortCol, m.sortAsc)
@@ -172,7 +172,7 @@ func TestSortCycleAndHeaderClick(t *testing.T) {
 		t.Fatalf("NAME asc should put pod-a first, got %q", row[2])
 	}
 	// 'S' reverses.
-	mi, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'S'}})
+	mi, _ = m.Update(tea.KeyPressMsg{Code: 'S', Text: "S"})
 	m = asModel(t, mi)
 	m.win.Home()
 	row, _ = m.win.Selected()
@@ -194,7 +194,7 @@ func TestLogsPauseStopsAutoScroll(t *testing.T) {
 	m := listModelForMouse(t, 1)
 	m.screen = screenLogs
 	// Space pauses; buffering continues; status explains.
-	mi, _ := m.Update(tea.KeyMsg{Type: tea.KeySpace, Runes: []rune{' '}})
+	mi, _ := m.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 	m = asModel(t, mi)
 	if !m.logPaused || !strings.Contains(m.statusMsg, "paused") {
 		t.Fatalf("space should pause logs, paused=%v msg=%q", m.logPaused, m.statusMsg)
@@ -205,13 +205,13 @@ func TestLogsPauseStopsAutoScroll(t *testing.T) {
 		t.Fatal("lines must keep buffering while paused")
 	}
 	// End resumes.
-	mi, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnd})
+	mi, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEnd})
 	m = asModel(t, mi)
 	if m.logPaused {
 		t.Fatal("End should resume the follow")
 	}
 	// Scrolling up auto-pauses.
-	mi, _ = m.Update(tea.KeyMsg{Type: tea.KeyUp})
+	mi, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyUp})
 	m = asModel(t, mi)
 	if !m.logPaused {
 		t.Fatal("scrolling up should auto-pause")
@@ -220,7 +220,7 @@ func TestLogsPauseStopsAutoScroll(t *testing.T) {
 
 func TestEventsWarningsOnlyFilter(t *testing.T) {
 	m := eventsModel(t) // fixture: 1 Warning (BackOff) + 1 Normal (ScalingReplicaSet)
-	mi, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'w'}})
+	mi, _ := m.Update(tea.KeyPressMsg{Code: 'w', Text: "w"})
 	m = asModel(t, mi)
 	if !m.eventsWarnOnly {
 		t.Fatal("'w' should enable warnings-only")
@@ -315,7 +315,7 @@ func TestHeaderChipWorksFromAnyScreen(t *testing.T) {
 		t.Fatalf("type chip should open the picker from topology, screen=%d return=%d", m.screen, m.pickerReturn)
 	}
 	// Esc returns to the topology view, not the list.
-	mi, _ = m.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	mi, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	m = asModel(t, mi)
 	if m.screen != screenTopology {
 		t.Fatalf("Esc should return to topology, got %d", m.screen)

@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/iadvize/idz-k8s/internal/model"
 )
@@ -84,7 +84,7 @@ func TestDatadogKeyOpensScopedLink(t *testing.T) {
 	if obj, _ := m.selectedObject(); obj.Name != "back" {
 		t.Fatalf("precondition: 'back' selected, got %q", obj.Name)
 	}
-	mi, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'D'}})
+	mi, cmd := m.Update(tea.KeyPressMsg{Code: 'D', Text: "D"})
 	m = runCmd(t, asModel(t, mi), cmd)
 	if len(rec.urls) != 1 {
 		t.Fatalf("'D' must open exactly one link, got %v", rec.urls)
@@ -133,7 +133,7 @@ func TestDatadogNeverOpensAGuessedLink(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			m, rec := ddModel(t)
 			mutate(&m)
-			mi, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'D'}})
+			mi, cmd := m.Update(tea.KeyPressMsg{Code: 'D', Text: "D"})
 			m = asModel(t, mi)
 			if cmd != nil {
 				m = runCmd(t, m, cmd)
@@ -160,7 +160,7 @@ func TestDatadogNeverOpensAGuessedLink(t *testing.T) {
 func TestDatadogShowsURLWhenBrowserFails(t *testing.T) {
 	m, rec := ddModel(t)
 	rec.err = errors.New("exec: \"open\": executable file not found")
-	mi, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'D'}})
+	mi, cmd := m.Update(tea.KeyPressMsg{Code: 'D', Text: "D"})
 	m = runCmd(t, asModel(t, mi), cmd)
 	if m.screen != screenDetail {
 		t.Fatalf("a failed launch must show the URL, screen=%v", m.screen)
@@ -172,7 +172,7 @@ func TestDatadogShowsURLWhenBrowserFails(t *testing.T) {
 	if !strings.Contains(m.errMsg, "browser did not open") {
 		t.Errorf("the failure must be explicit, errMsg=%q", m.errMsg)
 	}
-	mi, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	mi, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	if m = asModel(t, mi); m.screen != screenList {
 		t.Errorf("Esc must return to the list, screen=%v", m.screen)
 	}
@@ -202,7 +202,7 @@ func TestDatadogParentLinkInDrilledList(t *testing.T) {
 // drillInto snapshots the parent's same-namespace siblings.
 func TestDrillSnapshotsParentSiblings(t *testing.T) {
 	m, _ := ddModel(t)
-	mi, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	if !m.drilling() || len(m.drillParentSiblings) != 1 || m.drillParentSiblings[0] != "back-traceability" {
 		t.Errorf("parent siblings = %v, want [back-traceability]", m.drillParentSiblings)
@@ -213,7 +213,7 @@ func TestDatadogFromContainersView(t *testing.T) {
 	m, rec := ddModel(t)
 	m.screen = screenContainers
 	m.containerPod = model.ResourceObject{Namespace: "demo", Name: "back-5f7c9-abcde"}
-	mi, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'D'}})
+	mi, cmd := m.Update(tea.KeyPressMsg{Code: 'D', Text: "D"})
 	runCmd(t, asModel(t, mi), cmd)
 	if len(rec.urls) != 1 {
 		t.Fatalf("'D' in the containers view must open the pod's link, got %v", rec.urls)

@@ -1,6 +1,6 @@
 package ui
 
-import "github.com/charmbracelet/bubbles/table"
+import "charm.land/bubbles/v2/table"
 
 // winTable owns row windowing for a bubbles table so the visible slice is
 // always known — the bubbles table never scrolls internally, which makes

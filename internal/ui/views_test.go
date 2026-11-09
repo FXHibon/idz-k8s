@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/iadvize/idz-k8s/internal/config"
 	"github.com/iadvize/idz-k8s/internal/kube"
@@ -92,7 +92,7 @@ func TestColumnChooserToggleReorderApply(t *testing.T) {
 
 	// NAME cannot be hidden.
 	m.pickerWin.cursor = 1
-	mi, _ = m.handlePickerKey(tea.KeyMsg{Type: tea.KeySpace})
+	mi, _ = m.handlePickerKey(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 	m = asModel(t, mi)
 	if !m.colItems[1].on {
 		t.Fatal("NAME was hidden — it must stay")
@@ -100,20 +100,20 @@ func TestColumnChooserToggleReorderApply(t *testing.T) {
 
 	// Hide NAMESPACE, move NAME left (to the front).
 	m.pickerWin.cursor = 0
-	mi, _ = m.handlePickerKey(tea.KeyMsg{Type: tea.KeySpace})
+	mi, _ = m.handlePickerKey(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 	m = asModel(t, mi)
 	if m.colItems[0].on {
 		t.Fatal("NAMESPACE still on after toggle")
 	}
 	m.pickerWin.cursor = 1 // NAME
-	mi, _ = m.handlePickerKey(tea.KeyMsg{Type: tea.KeyLeft})
+	mi, _ = m.handlePickerKey(tea.KeyPressMsg{Code: tea.KeyLeft})
 	m = asModel(t, mi)
 	if m.colItems[0].title != "NAME" {
 		t.Fatalf("reorder failed, first item=%q", m.colItems[0].title)
 	}
 
 	// Enter applies: pref stored, list shows the new arrangement.
-	mi, _ = m.handlePickerKey(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, _ = m.handlePickerKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	if m.screen != screenList {
 		t.Fatalf("chooser did not close, screen=%d", m.screen)
@@ -146,7 +146,7 @@ func TestChooserDefaultArrangementClearsPref(t *testing.T) {
 	mi, _ := m.openColumnChooser()
 	m = asModel(t, mi)
 	// Apply without touching anything: no pref should be stored.
-	mi, _ = m.handlePickerKey(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, _ = m.handlePickerKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	if pref, ok := m.cfg.ViewPrefs["v1/pods"]; ok {
 		t.Fatalf("default arrangement must not create a pref entry, got %+v", pref)
@@ -243,7 +243,7 @@ func TestSaveViewNamingKeysAreCaptured(t *testing.T) {
 	m := newViewsModel(t)
 	m.viewNaming = true
 	// Typing "q" must edit the name, not quit the app.
-	mi, cmd := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	mi, cmd := m.handleKey(tea.KeyPressMsg{Code: 'q', Text: "q"})
 	m = asModel(t, mi)
 	if cmd != nil {
 		t.Fatal("typing in the naming prompt triggered a command (quit?)")
@@ -251,7 +251,7 @@ func TestSaveViewNamingKeysAreCaptured(t *testing.T) {
 	if m.viewName != "q" {
 		t.Fatalf("viewName=%q", m.viewName)
 	}
-	mi, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
+	mi, _ = m.handleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = asModel(t, mi)
 	if m.viewNaming || len(m.cfg.SavedViews) != 1 || m.cfg.SavedViews[0].Name != "q" {
 		t.Fatalf("naming commit failed: naming=%v views=%+v", m.viewNaming, m.cfg.SavedViews)

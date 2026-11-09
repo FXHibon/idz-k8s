@@ -14,7 +14,7 @@ import (
 	"strings"
 	"syscall"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"golang.org/x/term"
 	"k8s.io/client-go/tools/remotecommand"
 

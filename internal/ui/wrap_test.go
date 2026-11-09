@@ -67,7 +67,7 @@ func TestDescribeShowsFullEventAndConditionMessages(t *testing.T) {
 		t.Fatalf("full messages missing:\n%s", content)
 	}
 	for _, l := range strings.Split(content, "\n") {
-		if len([]rune(l)) > 100 {
+		if xansi.StringWidth(l) > 100 {
 			t.Fatalf("line exceeds the terminal width (would auto-wrap): %q", l)
 		}
 	}
