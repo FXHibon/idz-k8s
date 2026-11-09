@@ -1104,7 +1104,8 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.persistViewPref()
 			return m, nil
 		}
-		if v := m.filter.Value(); m.acceptRecall(recallList, msg, &v) {
+		v := m.filter.Value()
+		if m.filter.Position() == len([]rune(v)) && m.acceptRecall(recallList, msg, &v) {
 			m.filter.SetValue(v)
 			m.filter.CursorEnd()
 			m.applyRows()
@@ -1726,27 +1727,27 @@ func (m Model) View() string {
 	case m.confirming:
 		out = overlayCenter(out, m.confirmModal(), m.width)
 	case m.promptKind != promptNone:
-		out = overlayCenter(out, m.inputModal(m.promptTitle, m.promptInput, "", m.promptHint), m.width)
+		out = overlayCenter(out, m.inputModal(m.promptTitle, m.promptInput, -1, "", m.promptHint), m.width)
 	case m.fieldNaming:
 		out = overlayCenter(out, m.inputModal("add column — label key or .field.path",
-			m.fieldInput, "", "e.g. app · .status.podIP — Enter add · Esc cancel"), m.width)
+			m.fieldInput, -1, "", "e.g. app · .status.podIP — Enter add · Esc cancel"), m.width)
 	case m.screen == screenPicker:
 		box, _ := m.pickerModal()
 		out = overlayCenter(out, box, m.width)
 	case m.viewNaming:
-		out = overlayCenter(out, m.inputModal("save view as", m.viewName, "", "Enter save · Esc cancel"), m.width)
+		out = overlayCenter(out, m.inputModal("save view as", m.viewName, -1, "", "Enter save · Esc cancel"), m.width)
 	case m.filtering:
-		out = overlayCenter(out, m.inputModal("filter "+m.curType.Resource, m.filter.Value(), m.ghostFor(recallList, m.filter.Value()), "any column · space = AND · Enter save · Esc close"), m.width)
+		out = overlayCenter(out, m.inputModal("filter "+m.curType.Resource, m.filter.Value(), m.filter.Position(), m.ghostFor(recallList, m.filter.Value()), "any column · space = AND · Enter save · Esc close"), m.width)
 	case m.screen == screenEvents && m.eventsFiltering:
-		out = overlayCenter(out, m.inputModal("filter events", m.eventsQuery, m.ghostFor(recallEvents, m.eventsQuery), "Enter save · Esc cancel"), m.width)
+		out = overlayCenter(out, m.inputModal("filter events", m.eventsQuery, -1, m.ghostFor(recallEvents, m.eventsQuery), "Enter save · Esc cancel"), m.width)
 	case m.screen == screenHelm && m.helmFiltering:
-		out = overlayCenter(out, m.inputModal("filter helm releases", m.helmQuery, m.ghostFor(recallHelm, m.helmQuery), "any column · space = AND · Enter save · Esc close"), m.width)
+		out = overlayCenter(out, m.inputModal("filter helm releases", m.helmQuery, -1, m.ghostFor(recallHelm, m.helmQuery), "any column · space = AND · Enter save · Esc close"), m.width)
 	case m.searchTyping:
-		out = overlayCenter(out, m.inputModal("search", m.searchInput, m.ghostFor(recallSearch, m.searchInput), "Enter search · 'n'/'N' navigate · Esc clear"), m.width)
+		out = overlayCenter(out, m.inputModal("search", m.searchInput, -1, m.ghostFor(recallSearch, m.searchInput), "Enter search · 'n'/'N' navigate · Esc clear"), m.width)
 	case m.screen == screenSizingList && m.sizingFiltering:
-		out = overlayCenter(out, m.inputModal("filter workloads", m.sizingQuery, m.ghostFor(recallSizing, m.sizingQuery), "any column · space = AND · Enter save · Esc close"), m.width)
+		out = overlayCenter(out, m.inputModal("filter workloads", m.sizingQuery, -1, m.ghostFor(recallSizing, m.sizingQuery), "any column · space = AND · Enter save · Esc close"), m.width)
 	case m.screen == screenTop && m.usageTyping:
-		out = overlayCenter(out, m.inputModal("filter usage rows", m.usageFilterQ, m.ghostFor(recallUsage, m.usageFilterQ), "any column · space = AND · Enter save · Esc close"), m.width)
+		out = overlayCenter(out, m.inputModal("filter usage rows", m.usageFilterQ, -1, m.ghostFor(recallUsage, m.usageFilterQ), "any column · space = AND · Enter save · Esc close"), m.width)
 	}
 	// The banner is prepended AFTER the overlays: modals center within the
 	// app area and every click keeps its banner-less coordinates (mouse Y is
@@ -1882,13 +1883,29 @@ func (m Model) pickerModal() (string, modalGeom) {
 }
 
 // inputModal renders a centered single-input box (filters).
-func (m Model) inputModal(title, value, ghost, hint string) string {
+// inputModal draws a one-line input. cursor is the rune index of the caret
+// (-1 = end of value): the list filter's textinput moves it with ←/→/Home/End,
+// and a caret always drawn at the end made typed text land elsewhere.
+func (m Model) inputModal(title, value string, cursor int, ghost, hint string) string {
 	w := m.modalW()
 	inner := w - 4
-	field := padTo("/ "+value+"▏", inner)
-	if room := inner - len([]rune("/ "+value+"▏")); ghost != "" && room > 0 {
+	r := []rune(value)
+	if cursor < 0 || cursor > len(r) {
+		cursor = len(r)
+	}
+	if cursor < len(r) {
+		ghost = ""
+	}
+	before, after := r[:cursor], r[cursor:]
+	// Keep the caret on screen when the value is wider than the modal.
+	if over := len(before) + 3 - inner; over > 0 {
+		before = append([]rune("…"), before[over+1:]...)
+	}
+	plain := "/ " + string(before) + "▏" + string(after)
+	field := padTo(plain, inner)
+	if room := inner - len([]rune(plain)); ghost != "" && room > 0 {
 		g := truncate(ghost, room)
-		field = "/ " + value + "▏" + m.theme.Faint.Render(g) + strings.Repeat(" ", room-len([]rune(g)))
+		field = plain + m.theme.Faint.Render(g) + strings.Repeat(" ", room-len([]rune(g)))
 		hint = "Tab/→ recall · " + hint
 	}
 	lines := []string{
