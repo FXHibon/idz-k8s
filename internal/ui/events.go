@@ -89,6 +89,7 @@ func (m Model) handleEventsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case hit(msg, m.keys.Filter):
 		m.eventsFiltering = true
+		m.openRecall(recallEvents, &m.eventsQuery)
 		m.renderEvents()
 		return m, nil
 	case hit(msg, m.keys.Kind):

@@ -316,6 +316,7 @@ type Model struct {
 	// (owner request 2026-07-07).
 	searchTyping bool
 	searchInput  string
+	recall       [recallSlots]string // last committed query per '/' field, offered as a ghost
 	searchQuery  string
 	searchScreen screen // the screen the committed query belongs to
 	searchHits   []int  // matching line numbers in the raw content
@@ -973,10 +974,14 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	// Viewport search typing mode (Enter searches, Esc cancels).
 	if m.searchTyping {
+		if m.acceptRecall(recallSearch, msg, &m.searchInput) {
+			return m, nil
+		}
 		switch act, _ := editText(&m.searchInput, msg); act {
 		case editCommit:
 			m.searchTyping = false
 			m.searchQuery = strings.TrimSpace(m.searchInput)
+			m.commitRecall(recallSearch, m.searchQuery)
 			m.searchScreen = m.screen
 			m.applySearch(true)
 		case editCancel:
@@ -988,9 +993,14 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	// Events filter typing mode: Enter commits (query saved), Esc cancels.
 	if m.screen == screenEvents && m.eventsFiltering {
-		act, changed := editText(&m.eventsQuery, msg)
+		changed := m.acceptRecall(recallEvents, msg, &m.eventsQuery)
+		act := editTyping
+		if !changed {
+			act, changed = editText(&m.eventsQuery, msg)
+		}
 		switch act {
 		case editCommit:
+			m.commitRecall(recallEvents, m.eventsQuery)
 			m.eventsFiltering = false
 		case editCancel:
 			m.eventsFiltering = false
@@ -1004,9 +1014,14 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	// Helm filter typing mode (query visible as a chip).
 	if m.screen == screenHelm && m.helmFiltering {
-		act, changed := editText(&m.helmQuery, msg)
+		changed := m.acceptRecall(recallHelm, msg, &m.helmQuery)
+		act := editTyping
+		if !changed {
+			act, changed = editText(&m.helmQuery, msg)
+		}
 		switch act {
 		case editCommit:
+			m.commitRecall(recallHelm, m.helmQuery)
 			m.helmFiltering = false
 		case editCancel:
 			m.helmFiltering = false
@@ -1020,9 +1035,14 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	// Sizing-overview filter typing mode.
 	if m.screen == screenSizingList && m.sizingFiltering {
-		act, changed := editText(&m.sizingQuery, msg)
+		changed := m.acceptRecall(recallSizing, msg, &m.sizingQuery)
+		act := editTyping
+		if !changed {
+			act, changed = editText(&m.sizingQuery, msg)
+		}
 		switch act {
 		case editCommit:
+			m.commitRecall(recallSizing, m.sizingQuery)
 			m.sizingFiltering = false
 		case editCancel:
 			m.sizingFiltering = false
@@ -1036,9 +1056,14 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	// Usage-view filter typing mode.
 	if m.screen == screenTop && m.usageTyping {
-		act, changed := editText(&m.usageFilterQ, msg)
+		changed := m.acceptRecall(recallUsage, msg, &m.usageFilterQ)
+		act := editTyping
+		if !changed {
+			act, changed = editText(&m.usageFilterQ, msg)
+		}
 		switch act {
 		case editCommit:
+			m.commitRecall(recallUsage, m.usageFilterQ)
 			m.usageTyping = false
 		case editCancel:
 			m.usageTyping = false
@@ -1067,6 +1092,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "enter":
 			m.filtering = false
 			m.filter.Blur()
+			m.commitRecall(recallList, m.filter.Value())
 			m.applyRows()
 			m.persistViewPref()
 			return m, nil
@@ -1076,6 +1102,12 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.filter.Blur()
 			m.applyRows()
 			m.persistViewPref()
+			return m, nil
+		}
+		if v := m.filter.Value(); m.acceptRecall(recallList, msg, &v) {
+			m.filter.SetValue(v)
+			m.filter.CursorEnd()
+			m.applyRows()
 			return m, nil
 		}
 		var cmd tea.Cmd
@@ -1158,6 +1190,8 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m.openSizingDetail(m.sizingWin.cursor)
 		case hit(msg, m.keys.Filter):
 			m.sizingFiltering = true
+			m.openRecall(recallSizing, &m.sizingQuery)
+			m.applySizingFilter()
 			return m, nil
 		case hit(msg, m.keys.Sort):
 			m.sizingSortCol++
@@ -1475,6 +1509,7 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			}
 			if msg.X >= m.eventsFilterHit.x0 && msg.X < m.eventsFilterHit.x1 {
 				m.eventsFiltering = true
+				m.openRecall(recallEvents, &m.eventsQuery)
 				m.renderEvents()
 				return m, nil
 			}
@@ -1691,27 +1726,27 @@ func (m Model) View() string {
 	case m.confirming:
 		out = overlayCenter(out, m.confirmModal(), m.width)
 	case m.promptKind != promptNone:
-		out = overlayCenter(out, m.inputModal(m.promptTitle, m.promptInput, m.promptHint), m.width)
+		out = overlayCenter(out, m.inputModal(m.promptTitle, m.promptInput, "", m.promptHint), m.width)
 	case m.fieldNaming:
 		out = overlayCenter(out, m.inputModal("add column — label key or .field.path",
-			m.fieldInput, "e.g. app · .status.podIP — Enter add · Esc cancel"), m.width)
+			m.fieldInput, "", "e.g. app · .status.podIP — Enter add · Esc cancel"), m.width)
 	case m.screen == screenPicker:
 		box, _ := m.pickerModal()
 		out = overlayCenter(out, box, m.width)
 	case m.viewNaming:
-		out = overlayCenter(out, m.inputModal("save view as", m.viewName, "Enter save · Esc cancel"), m.width)
+		out = overlayCenter(out, m.inputModal("save view as", m.viewName, "", "Enter save · Esc cancel"), m.width)
 	case m.filtering:
-		out = overlayCenter(out, m.inputModal("filter "+m.curType.Resource, m.filter.Value(), "any column · space = AND · Enter save · Esc close"), m.width)
+		out = overlayCenter(out, m.inputModal("filter "+m.curType.Resource, m.filter.Value(), m.ghostFor(recallList, m.filter.Value()), "any column · space = AND · Enter save · Esc close"), m.width)
 	case m.screen == screenEvents && m.eventsFiltering:
-		out = overlayCenter(out, m.inputModal("filter events", m.eventsQuery, "Enter save · Esc cancel"), m.width)
+		out = overlayCenter(out, m.inputModal("filter events", m.eventsQuery, m.ghostFor(recallEvents, m.eventsQuery), "Enter save · Esc cancel"), m.width)
 	case m.screen == screenHelm && m.helmFiltering:
-		out = overlayCenter(out, m.inputModal("filter helm releases", m.helmQuery, "any column · space = AND · Enter save · Esc close"), m.width)
+		out = overlayCenter(out, m.inputModal("filter helm releases", m.helmQuery, m.ghostFor(recallHelm, m.helmQuery), "any column · space = AND · Enter save · Esc close"), m.width)
 	case m.searchTyping:
-		out = overlayCenter(out, m.inputModal("search", m.searchInput, "Enter search · 'n'/'N' navigate · Esc clear"), m.width)
+		out = overlayCenter(out, m.inputModal("search", m.searchInput, m.ghostFor(recallSearch, m.searchInput), "Enter search · 'n'/'N' navigate · Esc clear"), m.width)
 	case m.screen == screenSizingList && m.sizingFiltering:
-		out = overlayCenter(out, m.inputModal("filter workloads", m.sizingQuery, "any column · space = AND · Enter save · Esc close"), m.width)
+		out = overlayCenter(out, m.inputModal("filter workloads", m.sizingQuery, m.ghostFor(recallSizing, m.sizingQuery), "any column · space = AND · Enter save · Esc close"), m.width)
 	case m.screen == screenTop && m.usageTyping:
-		out = overlayCenter(out, m.inputModal("filter usage rows", m.usageFilterQ, "any column · space = AND · Enter save · Esc close"), m.width)
+		out = overlayCenter(out, m.inputModal("filter usage rows", m.usageFilterQ, m.ghostFor(recallUsage, m.usageFilterQ), "any column · space = AND · Enter save · Esc close"), m.width)
 	}
 	// The banner is prepended AFTER the overlays: modals center within the
 	// app area and every click keeps its banner-less coordinates (mouse Y is
@@ -1847,12 +1882,18 @@ func (m Model) pickerModal() (string, modalGeom) {
 }
 
 // inputModal renders a centered single-input box (filters).
-func (m Model) inputModal(title, value, hint string) string {
+func (m Model) inputModal(title, value, ghost, hint string) string {
 	w := m.modalW()
 	inner := w - 4
+	field := padTo("/ "+value+"▏", inner)
+	if room := inner - len([]rune("/ "+value+"▏")); ghost != "" && room > 0 {
+		g := truncate(ghost, room)
+		field = "/ " + value + "▏" + m.theme.Faint.Render(g) + strings.Repeat(" ", room-len([]rune(g)))
+		hint = "Tab/→ recall · " + hint
+	}
 	lines := []string{
 		m.theme.TableHeader.Render(padTo(title, inner)),
-		padTo("/ "+value+"▏", inner),
+		field,
 		m.theme.Faint.Render(padTo(hint, inner)),
 	}
 	return m.theme.ModalBorder.Render(strings.Join(lines, "\n"))

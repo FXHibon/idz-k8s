@@ -9,14 +9,15 @@ records the interaction rules and the stable core bindings, not every key.
 
 ## Global
 
-| Key | Action | Mouse equivalent |
-|-----|--------|------------------|
-| `?` | Toggle help overlay | click `?`/help label |
-| `q` / `Ctrl+C` | Quit | click quit label |
-| `Esc` | Back / close overlay | click breadcrumb / close `×` |
-| `:` | Jump to a resource type | click resource-type tab |
-| `/` | One consistent behavior everywhere: filters row views (lists, Helm releases, events, sizing table) and searches content views with highlighting (describe/YAML, logs, failures, topology, posture, connectivity, access, diff, Helm detail), then `n`/`N` navigate matches | click filter field |
-| `Tab` / `Shift+Tab` | Move focus between panes | click target pane |
+| Key                          | Action                                                                                                                                                                                                                                                                     | Mouse equivalent             |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| `?`                          | Toggle help overlay                                                                                                                                                                                                                                                        | click `?`/help label         |
+| `q` / `Ctrl+C`               | Quit                                                                                                                                                                                                                                                                       | click quit label             |
+| `Esc`                        | Back / close overlay                                                                                                                                                                                                                                                       | click breadcrumb / close `×` |
+| `:`                          | Jump to a resource type                                                                                                                                                                                                                                                    | click resource-type tab      |
+| `/`                          | One consistent behavior everywhere: filters row views (lists, Helm releases, events, sizing table) and searches content views with highlighting (describe/YAML, logs, failures, topology, posture, connectivity, access, diff, Helm detail), then `n`/`N` navigate matches | click filter field           |
+| `Tab` / `→` (in a `/` field) | Reopening `/` starts EMPTY; the last committed query shows as a faint ghost — `Tab`/`→` accepts it (also completes a typed prefix). Esc never replaces the recalled query (owner request 2026-11-09)                                                                       | —                            |
+| `Tab` / `Shift+Tab`          | Move focus between panes                                                                                                                                                                                                                                                   | click target pane            |
 
 ## Navigation (lists & views)
 
