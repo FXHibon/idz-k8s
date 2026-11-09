@@ -1901,13 +1901,28 @@ func (m Model) inputModal(title, value string, cursor int, ghost, hint string) s
 	if over := len(before) + 3 - inner; over > 0 {
 		before = append([]rune("…"), before[over+1:]...)
 	}
-	plain := "/ " + string(before) + "▏" + string(after)
+	if len(after) > 0 {
+		// Mid-text the caret is a block over the rune under the cursor: an
+		// inserted "▏" would take a column and shift the rest of the text.
+		head := "/ " + string(before)
+		tail := truncate(string(after[1:]), inner-len([]rune(head))-1)
+		field := head + m.theme.Cursor.Render(string(after[0])) + tail
+		if pad := inner - len([]rune(head)) - 1 - len([]rune(tail)); pad > 0 {
+			field += strings.Repeat(" ", pad)
+		}
+		return m.inputModalBox(title, field, hint, inner)
+	}
+	plain := "/ " + string(before) + "▏"
 	field := padTo(plain, inner)
 	if room := inner - len([]rune(plain)); ghost != "" && room > 0 {
 		g := truncate(ghost, room)
 		field = plain + m.theme.Faint.Render(g) + strings.Repeat(" ", room-len([]rune(g)))
 		hint = "Tab/→ recall · " + hint
 	}
+	return m.inputModalBox(title, field, hint, inner)
+}
+
+func (m Model) inputModalBox(title, field, hint string, inner int) string {
 	lines := []string{
 		m.theme.TableHeader.Render(padTo(title, inner)),
 		field,
